@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "232896256276",
+    "project_id": "careos-sanctuary-7b2a9",
+    "storage_bucket": "careos-sanctuary-7b2a9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:232896256276:android:6f72b0a59709ab15cc4a01",
+        "android_client_info": {
+          "package_name": "com.example.careos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA98U8uS8ki7Tnykx7wNUrjcVVOf0fVAgQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

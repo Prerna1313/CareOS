@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CareOS Patient Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-dim": "#305771",
+                        "inverse-on-surface": "#9c9d99",
+                        "error-container": "#fa746f",
+                        "on-primary": "#f5f9ff",
+                        "surface-dim": "#d8dbd3",
+                        "on-tertiary-container": "#3e456c",
+                        "surface-container-high": "#e7e9e2",
+                        "on-tertiary": "#faf8ff",
+                        "on-error": "#fff7f6",
+                        "outline-variant": "#afb3ac",
+                        "on-error-container": "#6e0a12",
+                        "primary-container": "#b8dffe",
+                        "on-surface-variant": "#5c605a",
+                        "secondary-dim": "#405b00",
+                        "on-primary-fixed": "#123e56",
+                        "surface-bright": "#fafaf5",
+                        "on-secondary-fixed": "#304600",
+                        "error-dim": "#67040d",
+                        "primary": "#3d637e",
+                        "background": "#fafaf5",
+                        "surface-container-low": "#f3f4ee",
+                        "on-tertiary-fixed": "#2b3257",
+                        "surface-container-lowest": "#ffffff",
+                        "tertiary-container": "#c9cffe",
+                        "secondary": "#4a6800",
+                        "surface-container": "#edefe8",
+                        "inverse-primary": "#b8dffe",
+                        "surface-variant": "#e0e4dc",
+                        "on-primary-fixed-variant": "#335a74",
+                        "tertiary": "#565d85",
+                        "tertiary-fixed": "#c9cffe",
+                        "on-secondary": "#f0ffce",
+                        "error": "#a83836",
+                        "primary-fixed-dim": "#aad1ef",
+                        "on-secondary-fixed-variant": "#476400",
+                        "secondary-container": "#c8f17a",
+                        "on-background": "#2f342e",
+                        "inverse-surface": "#0d0f0c",
+                        "outline": "#787c75",
+                        "surface-tint": "#3d637e",
+                        "on-primary-container": "#29506a",
+                        "secondary-fixed-dim": "#bae26e",
+                        "primary-fixed": "#b8dffe",
+                        "on-tertiary-fixed-variant": "#484e76",
+                        "surface-container-highest": "#e0e4dc",
+                        "tertiary-fixed-dim": "#bbc1ef",
+                        "on-surface": "#2f342e",
+                        "tertiary-dim": "#4a5178",
+                        "surface": "#fafaf5",
+                        "on-secondary-container": "#3f5a00",
+                        "secondary-fixed": "#c8f17a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Lexend"],
+                        "body": ["Lexend"],
+                        "label": ["Lexend"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #fafaf5;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body text-on-surface selection:bg-primary-container">
+<main class="relative flex min-h-screen w-full flex-col bg-background overflow-x-hidden max-w-md mx-auto shadow-2xl">
+<!-- Orientation Header (Cognitive Anchor) -->
+<header class="bg-secondary-container p-6 pt-10 rounded-b-[2rem] text-center shadow-sm">
+<h1 class="text-on-secondary-container text-5xl font-bold tracking-tight mb-1">10:30 AM</h1>
+<h2 class="text-on-secondary-container text-xl font-medium mb-4">Monday, Oct 24</h2>
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-center gap-2 text-on-secondary-container font-semibold text-lg bg-surface-container-lowest/40 py-2 px-4 rounded-full">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span>You are at home</span>
+</div>
+<div class="flex items-center justify-center gap-2 text-on-secondary-container font-semibold text-lg bg-surface-container-lowest/40 py-2 px-4 rounded-full">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span>You are with Rahul (son)</span>
+</div>
+</div>
+</header>
+<div class="p-4 space-y-6">
+<!-- Smart Support Card -->
+<section class="mt-4">
+<div class="bg-surface-container-lowest rounded-[2rem] overflow-hidden shadow-sm border-2 border-primary-container/20">
+<div class="relative h-64 w-full">
+<img alt="Neha, daughter" class="w-full h-full object-cover" data-alt="Close-up portrait of a smiling young woman with warm expression, soft natural indoor lighting, cozy home environment background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBm7TX-tdOU_AMWqe5XgaNi-DW3-I_yflqjkCSFEwJhFZ6epfg7DNnESRg6_PZ-DTJDNpLqNiqLlKVUYtOuiCSNFUOc05ORd5BszVUXU0dEPY_SuH43usGcvN4G7F0ev-dtak8fa26rBzX19hZsfEBMfcTQK9OBgopc23hB5DHFpZnyPVkv6Oeben4uOdqQENKP-lP1yPyt6YLBmL241ug3yJIghPUqwvJAL1lnuHOwWsX4ez-z8ohljX8lo_Yy89eAxUIbDjfh8w"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+<div class="absolute bottom-4 left-6 right-6">
+<p class="text-white text-2xl font-bold">This is your daughter Neha</p>
+<p class="text-white/90 text-lg">You are safe</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Primary Action Buttons -->
+<section class="grid grid-cols-1 gap-4">
+<button class="flex items-center justify-between w-full bg-primary p-6 rounded-xl shadow-lg transition-transform active:scale-95 group">
+<div class="flex items-center gap-4">
+<div class="bg-on-primary/20 p-3 rounded-full">
+<span class="material-symbols-outlined text-on-primary text-3xl" data-icon="mic" data-weight="fill" style="font-variation-settings: 'FILL' 1;">mic</span>
+</div>
+<span class="text-on-primary text-2xl font-bold tracking-wide">Talk</span>
+</div>
+<span class="material-symbols-outlined text-on-primary text-3xl opacity-50 group-hover:opacity-100" data-icon="chevron_right">chevron_right</span>
+</button>
+<button class="flex items-center justify-between w-full bg-tertiary p-6 rounded-xl shadow-lg transition-transform active:scale-95 group">
+<div class="flex items-center gap-4">
+<div class="bg-on-tertiary/20 p-3 rounded-full">
+<span class="material-symbols-outlined text-on-tertiary text-3xl" data-icon="photo_library" data-weight="fill" style="font-variation-settings: 'FILL' 1;">photo_library</span>
+</div>
+<span class="text-on-tertiary text-2xl font-bold tracking-wide">Memory</span>
+</div>
+<span class="material-symbols-outlined text-on-tertiary text-3xl opacity-50 group-hover:opacity-100" data-icon="chevron_right">chevron_right</span>
+</button>
+<button class="flex items-center justify-between w-full bg-error p-6 rounded-xl shadow-lg transition-transform active:scale-95 group">
+<div class="flex items-center gap-4">
+<div class="bg-on-error/20 p-3 rounded-full">
+<span class="material-symbols-outlined text-on-error text-3xl" data-icon="emergency" data-weight="fill" style="font-variation-settings: 'FILL' 1;">emergency</span>
+</div>
+<span class="text-on-error text-2xl font-bold tracking-wide">Help</span>
+</div>
+<span class="material-symbols-outlined text-on-error text-3xl opacity-50 group-hover:opacity-100" data-icon="chevron_right">chevron_right</span>
+</button>
+</section>
+<!-- Daily Support -->
+<section class="space-y-3">
+<h3 class="text-on-surface-variant font-bold text-sm uppercase tracking-widest px-1">Tasks for Today</h3>
+<div class="grid grid-cols-2 gap-3">
+<div class="bg-surface-container-low p-4 rounded-xl flex flex-col gap-2">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="pill">pill</span>
+<p class="text-on-surface font-bold text-lg leading-tight">Take your medicine</p>
+</div>
+<div class="bg-surface-container-low p-4 rounded-xl flex flex-col gap-2">
+<span class="material-symbols-outlined text-secondary text-3xl" data-icon="directions_walk">directions_walk</span>
+<p class="text-on-surface font-bold text-lg leading-tight">Take a short walk</p>
+</div>
+</div>
+</section>
+<!-- Light Engagement -->
+<section class="bg-primary-container/30 p-6 rounded-[2rem] mb-10">
+<p class="text-on-primary-container text-xl font-bold mb-4">What did you do today?</p>
+<div class="relative flex items-center gap-3">
+<div class="flex-1 bg-surface-container-lowest h-14 rounded-full px-6 flex items-center text-on-surface-variant text-lg shadow-inner">
+                        Tap mic to speak...
+                    </div>
+<button class="h-14 w-14 bg-primary rounded-full flex items-center justify-center text-on-primary shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="mic">mic</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Shared Component: BottomNavBar -->
+<nav class="sticky bottom-0 w-full mt-auto">
+<div class="flex gap-2 border-t border-outline-variant/20 bg-surface-bright px-4 pb-6 pt-2">
+<a class="flex flex-1 flex-col items-center justify-end gap-1 rounded-full text-primary" href="#">
+<div class="flex h-8 items-center justify-center" data-icon="House" data-size="24px" data-weight="fill">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">house</span>
+</div>
+<p class="text-xs font-bold leading-normal tracking-[0.015em]">Home</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-on-surface-variant" href="#">
+<div class="flex h-8 items-center justify-center" data-icon="Image" data-size="24px" data-weight="regular">
+<span class="material-symbols-outlined">image</span>
+</div>
+<p class="text-xs font-medium leading-normal tracking-[0.015em]">Memories</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-on-surface-variant" href="#">
+<div class="flex h-8 items-center justify-center" data-icon="Lifebuoy" data-size="24px" data-weight="regular">
+<span class="material-symbols-outlined">support</span>
+</div>
+<p class="text-xs font-medium leading-normal tracking-[0.015em]">Support</p>
+</a>
+</div>
+</nav>
+</main>
+</body></html>

@@ -1,0 +1,37 @@
+{
+  "firestore": {
+    "database": "(default)",
+    "location": "us-central1",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true
+    }
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "careos-sanctuary-7b2a9",
+          "appId": "1:232896256276:android:6f72b0a59709ab15cc4a01",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "careos-sanctuary-7b2a9",
+          "configurations": {
+            "android": "1:232896256276:android:6f72b0a59709ab15cc4a01",
+            "ios": "1:232896256276:ios:93cffba48df3b70bcc4a01",
+            "web": "1:232896256276:web:95ba557b1df6e40ccc4a01"
+          }
+        }
+      }
+    }
+  }
+}
