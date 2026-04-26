@@ -1,4 +1,10 @@
-enum EvaluationStatus { correct, partiallyCorrect, incorrect, manualReview, notEvaluated }
+enum EvaluationStatus {
+  correct,
+  partiallyCorrect,
+  incorrect,
+  manualReview,
+  notEvaluated,
+}
 
 class RecognitionResponse {
   final String id;
@@ -11,6 +17,7 @@ class RecognitionResponse {
   final int responseTimeSeconds;
   final DateTime answeredAt; // Renamed from completedAt
   final EvaluationStatus evaluationStatus;
+  final String taskMode;
 
   RecognitionResponse({
     required this.id,
@@ -23,6 +30,7 @@ class RecognitionResponse {
     required this.responseTimeSeconds,
     required this.answeredAt,
     this.evaluationStatus = EvaluationStatus.notEvaluated,
+    this.taskMode = 'dailyPrompt',
   });
 
   Map<String, dynamic> toMap() {
@@ -37,6 +45,7 @@ class RecognitionResponse {
       'responseTimeSeconds': responseTimeSeconds,
       'answeredAt': answeredAt.toIso8601String(),
       'evaluationStatus': evaluationStatus.index,
+      'taskMode': taskMode,
     };
   }
 
@@ -50,8 +59,13 @@ class RecognitionResponse {
       isSkipped: map['isSkipped'] ?? false,
       isCorrect: map['isCorrect'],
       responseTimeSeconds: map['responseTimeSeconds'] ?? 0,
-      answeredAt: DateTime.parse(map['answeredAt'] ?? map['completedAt'] ?? DateTime.now().toIso8601String()),
+      answeredAt: DateTime.parse(
+        map['answeredAt'] ??
+            map['completedAt'] ??
+            DateTime.now().toIso8601String(),
+      ),
       evaluationStatus: EvaluationStatus.values[map['evaluationStatus'] ?? 4],
+      taskMode: map['taskMode'] ?? 'dailyPrompt',
     );
   }
 }

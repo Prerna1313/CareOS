@@ -9,16 +9,30 @@ class CaregiverDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    
+
     // Extract arguments if passed from onboarding/login
-    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
-    
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
+        {};
+
     // Fallback dummy data if no arguments provided
-    final String caregiverName = args['caregiverName']?.toString().isNotEmpty == true ? args['caregiverName'] : 'Caregiver';
-    final String patientName = args['patientName']?.toString().isNotEmpty == true ? args['patientName'] : 'Alex Johnson';
-    final String condition = args['condition']?.toString().isNotEmpty == true ? args['condition'] : 'Memory Care Patient';
-    final String homeLocation = args['location']?.toString().isNotEmpty == true ? args['location'] : 'Home 1';
-    final String patientId = args['patientId']?.toString().isNotEmpty == true ? args['patientId'] : 'PT-8429';
+    final String caregiverName =
+        args['caregiverName']?.toString().isNotEmpty == true
+        ? args['caregiverName']
+        : 'Caregiver';
+    final String patientName =
+        args['patientName']?.toString().isNotEmpty == true
+        ? args['patientName']
+        : 'Alex Johnson';
+    final String condition = args['condition']?.toString().isNotEmpty == true
+        ? args['condition']
+        : 'Memory Care Patient';
+    final String homeLocation = args['location']?.toString().isNotEmpty == true
+        ? args['location']
+        : 'Home 1';
+    final String patientId = args['patientId']?.toString().isNotEmpty == true
+        ? args['patientId']
+        : 'PT-8429';
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -38,9 +52,15 @@ class CaregiverDashboardScreen extends StatelessWidget {
           IconButton(
             onPressed: () {
               Navigator.pushNamedAndRemoveUntil(
-                  context, AppRoutes.landing, (route) => false);
+                context,
+                AppRoutes.landing,
+                (route) => false,
+              );
             },
-            icon: const Icon(Icons.logout_rounded, color: AppColors.onSurfaceVariant),
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: AppColors.onSurfaceVariant,
+            ),
             tooltip: 'Logout',
           ),
         ],
@@ -51,7 +71,7 @@ class CaregiverDashboardScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header / Patient Summary ──
+              // Header / Patient Summary
               _PatientHeaderCard(
                 patientName: patientName,
                 condition: condition,
@@ -59,16 +79,16 @@ class CaregiverDashboardScreen extends StatelessWidget {
                 textTheme: textTheme,
               ),
               const SizedBox(height: 16),
-              
-              // ── Patient Login ID Card ──
+
+              // Patient Login ID Card
               _PatientLoginIdCard(patientId: patientId),
               const SizedBox(height: 24),
 
-              // ── Metrics Row ──
+              // Metrics Row
               _MetricsRow(textTheme: textTheme),
               const SizedBox(height: 32),
 
-              // ── Active Alerts ──
+              // Active Alerts
               Text(
                 'Active Alerts',
                 style: textTheme.titleLarge?.copyWith(
@@ -90,7 +110,7 @@ class CaregiverDashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
 
-              // ── Daily Insights ──
+              // Daily Insights
               Text(
                 'Daily Insights',
                 style: textTheme.titleLarge?.copyWith(
@@ -114,7 +134,7 @@ class CaregiverDashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
 
-              // ── Quick Actions ──
+              // Quick Actions
               Text(
                 'Quick Actions',
                 style: textTheme.titleLarge?.copyWith(
@@ -180,7 +200,6 @@ class _PatientHeaderCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      // Tonal layered depth (No drop shadows)
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(20),
@@ -207,7 +226,10 @@ class _PatientHeaderCard extends StatelessWidget {
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text('•', style: TextStyle(color: AppColors.outlineVariant)),
+                child: Text(
+                  '•',
+                  style: TextStyle(color: AppColors.outlineVariant),
+                ),
               ),
               Text(
                 location,
@@ -316,7 +338,7 @@ class _MetricItem extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-              ]
+              ],
             ],
           ),
           const SizedBox(height: 4),
@@ -456,7 +478,7 @@ class _InsightCard extends StatelessWidget {
                     color: AppColors.onSurfaceVariant,
                   ),
                 ),
-              ]
+              ],
             ],
           ),
         ],
@@ -483,7 +505,7 @@ class _QuickActionButton extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {}, // Future navigation
+        onTap: () {},
         borderRadius: BorderRadius.circular(20),
         child: Container(
           decoration: BoxDecoration(
@@ -549,7 +571,11 @@ class _PatientLoginIdCard extends StatelessWidget {
               color: AppColors.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.badge_outlined, color: AppColors.primary, size: 24),
+            child: const Icon(
+              Icons.badge_outlined,
+              color: AppColors.primary,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(

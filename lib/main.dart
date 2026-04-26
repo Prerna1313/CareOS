@@ -22,6 +22,7 @@ import 'services/recognition_service.dart';
 import 'services/recognition_response_service.dart';
 import 'services/camera_service.dart';
 import 'services/camera_event_service.dart';
+import 'services/cloud_vision_service.dart';
 import 'services/vision_service.dart';
 import 'services/cloud_ai_service.dart';
 import 'providers/recognition_provider.dart';
@@ -30,6 +31,11 @@ import 'services/patient_contract_mapper_service.dart';
 import 'services/patient_intervention_service.dart';
 import 'services/patient_records_service.dart';
 import 'services/patient_session_service.dart';
+import 'services/interaction_signal_service.dart';
+import 'services/speech_signal_service.dart';
+import 'services/advanced_vision_contract_service.dart';
+import 'services/advanced_speech_contract_service.dart';
+import 'services/backend_processing_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
@@ -48,11 +54,15 @@ void main() async {
   final cameraService = CameraService(cameraEventService);
   final patientSessionService = PatientSessionService();
   final patientInterventionService = PatientInterventionService();
+  final interactionSignalService = InteractionSignalService();
+  final speechSignalService = SpeechSignalService();
+  final backendProcessingService = BackendProcessingService();
 
   // Late initialization for services that depend on Firebase/AI
   late RecognitionService recognitionService;
   late VisionService visionService;
   late DailySummaryService dailySummaryService;
+  late CloudVisionService cloudVisionService;
 
   // Initialize local services and Firebase (wrapped to prevent blank screen)
   try {
@@ -64,17 +74,23 @@ void main() async {
     await cameraEventService.init();
     await patientSessionService.init();
     await patientInterventionService.init();
+    await interactionSignalService.init();
+    await speechSignalService.init();
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
     final cloudAiService = CloudAIService();
+    cloudVisionService = CloudVisionService();
     recognitionService = RecognitionService(
       recognitionResponseService,
       cloudAiService,
     );
-    visionService = VisionService(cloudAiService);
-    dailySummaryService = DailySummaryService(cloudAiService);
+    visionService = VisionService(cloudAiService, cloudVisionService);
+    dailySummaryService = DailySummaryService(
+      cloudAiService,
+      backendProcessingService: backendProcessingService,
+    );
 
     await recognitionService.init();
 
@@ -109,6 +125,9 @@ void main() async {
       dailySummaryService: dailySummaryService,
       patientSessionService: patientSessionService,
       patientInterventionService: patientInterventionService,
+      interactionSignalService: interactionSignalService,
+      speechSignalService: speechSignalService,
+      backendProcessingService: backendProcessingService,
     ),
   );
 }
@@ -132,6 +151,9 @@ class CareOSApp extends StatelessWidget {
   final DailySummaryService dailySummaryService;
   final PatientSessionService patientSessionService;
   final PatientInterventionService patientInterventionService;
+  final InteractionSignalService interactionSignalService;
+  final SpeechSignalService speechSignalService;
+  final BackendProcessingService backendProcessingService;
 
   const CareOSApp({
     super.key,
@@ -151,6 +173,9 @@ class CareOSApp extends StatelessWidget {
     required this.dailySummaryService,
     required this.patientSessionService,
     required this.patientInterventionService,
+    required this.interactionSignalService,
+    required this.speechSignalService,
+    required this.backendProcessingService,
   });
 
   @override
@@ -165,6 +190,16 @@ class CareOSApp extends StatelessWidget {
       memoryService: memoryService,
       dailyCheckinService: dailyCheckinService,
       interventionService: patientInterventionService,
+      interactionSignalService: interactionSignalService,
+      speechSignalService: speechSignalService,
+    );
+    final advancedVisionContractService = AdvancedVisionContractService(
+      cameraEventService,
+      patientRecordsService,
+    );
+    final advancedSpeechContractService = AdvancedSpeechContractService(
+      speechSignalService,
+      patientRecordsService,
     );
 
     return MultiProvider(
@@ -176,7 +211,18 @@ class CareOSApp extends StatelessWidget {
         Provider<PatientInterventionService>.value(
           value: patientInterventionService,
         ),
+        Provider<InteractionSignalService>.value(value: interactionSignalService),
+        Provider<SpeechSignalService>.value(value: speechSignalService),
+        Provider<BackendProcessingService>.value(
+          value: backendProcessingService,
+        ),
         Provider<PatientRecordsService>.value(value: patientRecordsService),
+        Provider<AdvancedVisionContractService>.value(
+          value: advancedVisionContractService,
+        ),
+        Provider<AdvancedSpeechContractService>.value(
+          value: advancedSpeechContractService,
+        ),
         Provider<EventLogService>.value(value: eventLogService),
         Provider<ConfusionDetectionService>.value(
           value: confusionDetectionService,
@@ -237,6 +283,7 @@ class CareOSApp extends StatelessWidget {
             dailyCheckinService,
             DailyReportService(memoryService),
             dailySummaryService,
+            speechSignalService: speechSignalService,
           ),
         ),
         ChangeNotifierProvider(

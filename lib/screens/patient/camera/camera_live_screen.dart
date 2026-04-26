@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -27,6 +28,8 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
   bool _isAnalyzing = false;
   Timer? _intervalTimer;
   bool _autoCaptureEnabled = false;
+  VisionAnalysisResult? _latestAnalysisResult;
+  String? _latestAnalyzedImagePath;
 
   @override
   void initState() {
@@ -111,6 +114,10 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
       );
 
       if (mounted) {
+        setState(() {
+          _latestAnalysisResult = result;
+          _latestAnalyzedImagePath = event.imagePath;
+        });
         _showCaptureFeedback(updatedEvent);
       }
     } catch (e) {
@@ -272,6 +279,22 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
         children: [
           // Camera Preview
           Center(child: CameraPreview(_cameraService.controller!)),
+
+          if (_latestAnalysisResult != null && _latestAnalyzedImagePath != null)
+            Positioned(
+              top: 132,
+              right: 16,
+              child: _DetectionPreviewCard(
+                imagePath: _latestAnalyzedImagePath!,
+                result: _latestAnalysisResult!,
+                onClose: () {
+                  setState(() {
+                    _latestAnalysisResult = null;
+                    _latestAnalyzedImagePath = null;
+                  });
+                },
+              ),
+            ),
 
           // Top Controls
           Positioned(
@@ -488,5 +511,145 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
         ],
       ),
     );
+  }
+}
+
+class _DetectionPreviewCard extends StatelessWidget {
+  final String imagePath;
+  final VisionAnalysisResult result;
+  final VoidCallback onClose;
+
+  const _DetectionPreviewCard({
+    required this.imagePath,
+    required this.result,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Latest detection',
+                  style: textTheme.labelLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: onClose,
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: AspectRatio(
+              aspectRatio: 3 / 4,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Image.file(
+                        File(imagePath),
+                        fit: BoxFit.cover,
+                      ),
+                      ...result.detectionBoxes.map(
+                        (box) => _buildDetectionBox(
+                          box,
+                          constraints.maxWidth,
+                          constraints.maxHeight,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            result.unusualObservation.trim().isNotEmpty
+                ? result.unusualObservation
+                : result.description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.bodySmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.85),
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetectionBox(
+    VisionDetectionBox box,
+    double width,
+    double height,
+  ) {
+    return Positioned(
+      left: box.left * width,
+      top: box.top * height,
+      width: box.width * width,
+      height: box.height * height,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: _strokeColor(box.category),
+            width: box.category == 'safety' ? 2.4 : 1.8,
+          ),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            color: _strokeColor(box.category),
+            child: Text(
+              box.label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _strokeColor(String category) {
+    switch (category) {
+      case 'safety':
+        return const Color(0xFFE53935);
+      case 'person':
+        return const Color(0xFFFF7043);
+      default:
+        return const Color(0xFFFF5252);
+    }
   }
 }

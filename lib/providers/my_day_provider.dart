@@ -3,6 +3,7 @@ import '../services/daily_checkin_service.dart';
 import '../services/daily_report_service.dart';
 import '../services/daily_summary_service.dart';
 import '../services/firestore/firestore_daily_checkin_service.dart';
+import '../services/speech_signal_service.dart';
 import 'dart:io';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
@@ -10,11 +11,13 @@ import 'package:uuid/uuid.dart';
 import '../models/my_day/daily_checkin_entry.dart';
 import '../models/my_day/question_response.dart';
 import '../models/my_day/voice_diary_entry.dart';
+import '../models/speech_signal.dart';
 
 class MyDayProvider extends ChangeNotifier {
   final DailyCheckinService _storageService;
   final DailyReportService _reportService;
   final DailySummaryService _summaryService;
+  final SpeechSignalService _speechSignalService;
   final FirestoreDailyCheckinService? _firestoreService;
   final AudioRecorder _recorder = AudioRecorder();
 
@@ -22,8 +25,10 @@ class MyDayProvider extends ChangeNotifier {
     this._storageService,
     this._reportService,
     this._summaryService, {
+    required SpeechSignalService speechSignalService,
     FirestoreDailyCheckinService? firestoreService,
-  }) : _firestoreService = firestoreService {
+  }) : _speechSignalService = speechSignalService,
+       _firestoreService = firestoreService {
     _loadHistory();
     _loadTodayEntry();
   }
@@ -337,7 +342,11 @@ class MyDayProvider extends ChangeNotifier {
         // Update today's entry with the new voice note
         if (_todayEntry != null) {
           // Perform transcription
-          final transcription = await _summaryService.transcribeAudio(path);
+          final transcription = await _summaryService.transcribeAudio(
+            path,
+            patientId: 'patient_local_demo',
+            source: 'voiceDiary',
+          );
 
           final voiceEntry = VoiceDiaryEntry(
             filePath: path,
@@ -346,6 +355,15 @@ class MyDayProvider extends ChangeNotifier {
             timestamp: DateTime.now(),
           );
           _todayEntry = _todayEntry!.copyWith(voiceNote: voiceEntry);
+
+          if (transcription.trim().isNotEmpty) {
+            await _speechSignalService.logSpeechSignal(
+              patientId: 'patient_local_demo',
+              source: SpeechSignalSource.voiceDiary,
+              transcript: transcription,
+              durationSeconds: duration,
+            );
+          }
 
           // Regenerate summary if we have new content
           if (transcription.isNotEmpty) {

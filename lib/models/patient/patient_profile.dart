@@ -9,6 +9,10 @@ class PatientProfile {
   final List<String> importantItems;
   final bool autoOrientationEnabled;
   final bool voicePromptsEnabled;
+  final double textScaleFactor;
+  final bool highContrastEnabled;
+  final bool reducedMotionEnabled;
+  final bool simpleLayoutEnabled;
   final DateTime createdAt;
   final DateTime lastActiveAt;
   final String lastKnownContextSummary;
@@ -25,6 +29,10 @@ class PatientProfile {
     required this.importantItems,
     required this.autoOrientationEnabled,
     required this.voicePromptsEnabled,
+    required this.textScaleFactor,
+    required this.highContrastEnabled,
+    required this.reducedMotionEnabled,
+    required this.simpleLayoutEnabled,
     required this.createdAt,
     required this.lastActiveAt,
     required this.lastKnownContextSummary,
@@ -50,6 +58,10 @@ class PatientProfile {
       importantItems: const ['glasses', 'diary', 'medicine'],
       autoOrientationEnabled: true,
       voicePromptsEnabled: true,
+      textScaleFactor: 1.0,
+      highContrastEnabled: false,
+      reducedMotionEnabled: false,
+      simpleLayoutEnabled: false,
       createdAt: now,
       lastActiveAt: now,
       lastKnownContextSummary: 'You are safe at home.',
@@ -69,6 +81,10 @@ class PatientProfile {
       'importantItems': importantItems,
       'autoOrientationEnabled': autoOrientationEnabled,
       'voicePromptsEnabled': voicePromptsEnabled,
+      'textScaleFactor': textScaleFactor,
+      'highContrastEnabled': highContrastEnabled,
+      'reducedMotionEnabled': reducedMotionEnabled,
+      'simpleLayoutEnabled': simpleLayoutEnabled,
       'createdAt': createdAt.toIso8601String(),
       'lastActiveAt': lastActiveAt.toIso8601String(),
       'lastKnownContextSummary': lastKnownContextSummary,
@@ -98,6 +114,10 @@ class PatientProfile {
       ),
       autoOrientationEnabled: map['autoOrientationEnabled'] as bool? ?? true,
       voicePromptsEnabled: map['voicePromptsEnabled'] as bool? ?? true,
+      textScaleFactor: (map['textScaleFactor'] as num?)?.toDouble() ?? 1.0,
+      highContrastEnabled: map['highContrastEnabled'] as bool? ?? false,
+      reducedMotionEnabled: map['reducedMotionEnabled'] as bool? ?? false,
+      simpleLayoutEnabled: map['simpleLayoutEnabled'] as bool? ?? false,
       createdAt: parseDate(map['createdAt'], now),
       lastActiveAt: parseDate(map['lastActiveAt'], now),
       lastKnownContextSummary:
@@ -117,6 +137,10 @@ class PatientProfile {
     List<String>? importantItems,
     bool? autoOrientationEnabled,
     bool? voicePromptsEnabled,
+    double? textScaleFactor,
+    bool? highContrastEnabled,
+    bool? reducedMotionEnabled,
+    bool? simpleLayoutEnabled,
     DateTime? createdAt,
     DateTime? lastActiveAt,
     String? lastKnownContextSummary,
@@ -135,6 +159,10 @@ class PatientProfile {
       autoOrientationEnabled:
           autoOrientationEnabled ?? this.autoOrientationEnabled,
       voicePromptsEnabled: voicePromptsEnabled ?? this.voicePromptsEnabled,
+      textScaleFactor: textScaleFactor ?? this.textScaleFactor,
+      highContrastEnabled: highContrastEnabled ?? this.highContrastEnabled,
+      reducedMotionEnabled: reducedMotionEnabled ?? this.reducedMotionEnabled,
+      simpleLayoutEnabled: simpleLayoutEnabled ?? this.simpleLayoutEnabled,
       createdAt: createdAt ?? this.createdAt,
       lastActiveAt: lastActiveAt ?? this.lastActiveAt,
       lastKnownContextSummary:

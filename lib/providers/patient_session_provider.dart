@@ -102,6 +102,10 @@ class PatientSessionProvider extends ChangeNotifier {
     required List<String> importantItems,
     required bool autoOrientationEnabled,
     required bool voicePromptsEnabled,
+    required double textScaleFactor,
+    required bool highContrastEnabled,
+    required bool reducedMotionEnabled,
+    required bool simpleLayoutEnabled,
   }) async {
     if (_profile == null) return;
     _profile = _profile!.copyWith(
@@ -121,6 +125,10 @@ class PatientSessionProvider extends ChangeNotifier {
       importantItems: importantItems,
       autoOrientationEnabled: autoOrientationEnabled,
       voicePromptsEnabled: voicePromptsEnabled,
+      textScaleFactor: textScaleFactor,
+      highContrastEnabled: highContrastEnabled,
+      reducedMotionEnabled: reducedMotionEnabled,
+      simpleLayoutEnabled: simpleLayoutEnabled,
       lastActiveAt: DateTime.now(),
       lastKnownContextSummary:
           'You are safe at ${homeLabel.trim().isNotEmpty ? homeLabel.trim() : _profile!.homeLabel}.',

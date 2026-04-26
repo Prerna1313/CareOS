@@ -5,6 +5,7 @@ import '../services/voice_orientation_service.dart';
 
 class CalmingPopup extends StatefulWidget {
   final VoidCallback onDismiss;
+  final VoidCallback? onStartRecognitionTask;
   final String patientName;
   final String caregiverName;
   final String caregiverRelationship;
@@ -14,6 +15,7 @@ class CalmingPopup extends StatefulWidget {
   const CalmingPopup({
     super.key,
     required this.onDismiss,
+    this.onStartRecognitionTask,
     this.patientName = 'Friend',
     this.caregiverName = 'Rahul',
     this.caregiverRelationship = 'daughter',
@@ -217,6 +219,26 @@ class _CalmingPopupState extends State<CalmingPopup> {
                   ),
                 ),
                 const SizedBox(height: 32),
+                if (widget.onStartRecognitionTask != null) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        VoiceOrientationService().stop();
+                        widget.onStartRecognitionTask?.call();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      icon: const Icon(Icons.auto_stories_rounded),
+                      label: const Text('Try a Memory Task'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(

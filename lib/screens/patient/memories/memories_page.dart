@@ -18,6 +18,13 @@ import 'package:path/path.dart' as p;
 import 'memory_detail_screen.dart';
 import '../recognition/recognition_activity_screen.dart';
 
+const _memoryBackground = Color(0xFFEEF5FA);
+const _memorySurface = Color(0xFFFFFDFB);
+const _memoryMutedSurface = Color(0xFFE4EEF6);
+const _memoryAccent = Color(0xFF5E84A1);
+const _memoryAccentSoft = Color(0xFFD8E7F2);
+const _memoryTextSoft = Color(0xFF607487);
+
 class MemoriesPage extends StatefulWidget {
   const MemoriesPage({super.key});
 
@@ -70,7 +77,7 @@ class _MemoriesPageState extends State<MemoriesPage> {
           );
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _memoryBackground,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -91,7 +98,7 @@ class _MemoriesPageState extends State<MemoriesPage> {
                     Text(
                       'Revisit your beautiful moments.',
                       style: textTheme.titleMedium?.copyWith(
-                        color: AppColors.onSurfaceVariant,
+                        color: _memoryTextSoft,
                       ),
                     ),
                   ],
@@ -110,7 +117,7 @@ class _MemoriesPageState extends State<MemoriesPage> {
                     hintText: 'Search memories...',
                     prefixIcon: const Icon(Icons.search_rounded),
                     filled: true,
-                    fillColor: AppColors.surfaceContainerLow,
+                    fillColor: _memorySurface,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
                       borderSide: BorderSide.none,
@@ -342,12 +349,12 @@ class _FilterChip extends StatelessWidget {
         label: Text(label),
         selected: isSelected,
         onSelected: (_) => onTap(),
-        backgroundColor: AppColors.surfaceContainerLow,
-        selectedColor: AppColors.primaryContainer,
+        backgroundColor: _memorySurface,
+        selectedColor: _memoryAccentSoft,
         labelStyle: TextStyle(
           color: isSelected
-              ? AppColors.onPrimaryContainer
-              : AppColors.onSurfaceVariant,
+              ? _memoryAccent
+              : _memoryTextSoft,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -377,10 +384,10 @@ class _MemoryStatsCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: _memorySurface,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: AppColors.outlineVariant.withValues(alpha: 0.15),
+          color: _memoryAccentSoft,
         ),
       ),
       child: Column(
@@ -396,7 +403,7 @@ class _MemoryStatsCard extends StatelessWidget {
                 ? 'Start saving important people, places, and moments.'
                 : 'You have saved $totalCount memories so far.',
             style: textTheme.bodyMedium?.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: _memoryTextSoft,
             ),
           ),
           const SizedBox(height: 18),
@@ -502,8 +509,8 @@ class _RecognitionPromptCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primaryContainer.withValues(alpha: 0.28),
-            AppColors.surfaceContainerHigh,
+            _memoryAccentSoft,
+            const Color(0xFFF8FBFE),
           ],
         ),
         borderRadius: BorderRadius.circular(24),
@@ -536,7 +543,7 @@ class _RecognitionPromptCard extends StatelessWidget {
                 Text(
                   'Try a quick recognition moment for "${memoryItem.name}".',
                   style: textTheme.bodyMedium?.copyWith(
-                    color: AppColors.onSurfaceVariant,
+                    color: _memoryTextSoft,
                     height: 1.4,
                   ),
                 ),
@@ -1004,10 +1011,10 @@ class _ManualMemoryCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
+          color: _memorySurface,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: AppColors.outlineVariant.withValues(alpha: 0.1),
+            color: _memoryAccentSoft,
           ),
         ),
         child: Row(
@@ -1256,7 +1263,7 @@ class _MemoryMetaPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerHigh,
+        color: _memoryMutedSurface,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -1290,10 +1297,10 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(32),
-      ),
+        decoration: BoxDecoration(
+          color: _memoryAccentSoft,
+          borderRadius: BorderRadius.circular(32),
+        ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1302,7 +1309,7 @@ class _SummaryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: const BoxDecoration(
-                  color: AppColors.primary,
+                  color: _memoryAccent,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -1316,7 +1323,7 @@ class _SummaryCard extends StatelessWidget {
                 'Today\'s Summary',
                 style: textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
+                  color: _memoryAccent,
                 ),
               ),
             ],
@@ -1354,10 +1361,10 @@ class _RecordActionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.secondaryContainer.withValues(alpha: 0.4),
+          color: const Color(0xFFE9F3FA),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: AppColors.secondary.withValues(alpha: 0.1),
+            color: _memoryAccentSoft,
             width: 1,
           ),
         ),
@@ -1366,12 +1373,12 @@ class _RecordActionCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: const BoxDecoration(
-                color: AppColors.secondary,
+                color: _memoryAccent,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.add_rounded,
-                color: AppColors.onSecondary,
+                color: Colors.white,
                 size: 24,
               ),
             ),
@@ -1384,13 +1391,13 @@ class _RecordActionCard extends StatelessWidget {
                     'Add a New Memory',
                     style: textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: AppColors.onSecondaryContainer,
+                      color: _memoryAccent,
                     ),
                   ),
                   Text(
                     'Save a photo or a special moment',
                     style: textTheme.bodySmall?.copyWith(
-                      color: AppColors.onSecondaryContainer.withValues(
+                      color: _memoryTextSoft.withValues(
                         alpha: 0.8,
                       ),
                     ),
@@ -1400,7 +1407,7 @@ class _RecordActionCard extends StatelessWidget {
             ),
             Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.onSecondaryContainer.withValues(alpha: 0.5),
+              color: _memoryAccent.withValues(alpha: 0.5),
             ),
           ],
         ),

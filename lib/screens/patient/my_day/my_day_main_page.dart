@@ -7,6 +7,12 @@ import '../../../../providers/my_day_provider.dart';
 import '../../../../providers/patient_session_provider.dart';
 import 'daily_history_detail_screen.dart';
 
+const _myDayBackground = Color(0xFFF3F8F1);
+const _myDaySurface = Color(0xFFFFFDF8);
+const _myDayAccent = Color(0xFF5E8B6F);
+const _myDayAccentSoft = Color(0xFFDCEBDE);
+const _myDayTextSoft = Color(0xFF5F6F61);
+
 class MyDayMainPage extends StatelessWidget {
   const MyDayMainPage({super.key});
 
@@ -19,7 +25,7 @@ class MyDayMainPage extends StatelessWidget {
     final greeting = _greetingForTime();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _myDayBackground,
       body: ScrollConfiguration(
         behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
         child: SingleChildScrollView(
@@ -35,7 +41,7 @@ class MyDayMainPage extends StatelessWidget {
                 Text(
                   greeting,
                   style: textTheme.displaySmall?.copyWith(
-                    color: AppColors.onSurfaceVariant,
+                    color: _myDayTextSoft,
                     fontWeight: FontWeight.w300,
                     letterSpacing: -0.5,
                   ),
@@ -53,7 +59,7 @@ class MyDayMainPage extends StatelessWidget {
                 Text(
                   "Your memories are safe with me.\nLet's record your highlights.",
                   style: textTheme.titleLarge?.copyWith(
-                    color: AppColors.onSurfaceVariant,
+                    color: _myDayTextSoft,
                     height: 1.5,
                     fontWeight: FontWeight.w400,
                     fontSize: 18,
@@ -178,10 +184,10 @@ class _TodayStatusCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: _myDaySurface,
         borderRadius: BorderRadius.circular(28),
         border: Border.all(
-          color: AppColors.primaryContainer.withValues(alpha: 0.35),
+          color: _myDayAccentSoft,
         ),
       ),
       child: Column(
@@ -192,12 +198,12 @@ class _TodayStatusCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryContainer.withValues(alpha: 0.35),
+                  color: _myDayAccentSoft,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.self_improvement_rounded,
-                  color: AppColors.primary,
+                  color: _myDayAccent,
                 ),
               ),
               const SizedBox(width: 12),
@@ -214,7 +220,7 @@ class _TodayStatusCard extends StatelessWidget {
                     Text(
                       provider.completionLabel,
                       style: textTheme.bodyMedium?.copyWith(
-                        color: AppColors.onSurfaceVariant,
+                        color: _myDayTextSoft,
                       ),
                     ),
                   ],
@@ -223,7 +229,7 @@ class _TodayStatusCard extends StatelessWidget {
               Text(
                 '$answered/$total',
                 style: textTheme.titleMedium?.copyWith(
-                  color: AppColors.primary,
+                  color: _myDayAccent,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -235,8 +241,8 @@ class _TodayStatusCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: provider.completionProgress,
               minHeight: 10,
-              backgroundColor: AppColors.surfaceContainerHigh,
-              color: AppColors.primary,
+              backgroundColor: _myDayAccentSoft,
+              color: _myDayAccent,
             ),
           ),
           const SizedBox(height: 14),
@@ -247,7 +253,7 @@ class _TodayStatusCard extends StatelessWidget {
                 ? 'You have started saving thoughts for today. You can continue anytime.'
                 : 'Start a gentle guided reflection for today.',
             style: textTheme.bodyMedium?.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: _myDayTextSoft,
               height: 1.4,
             ),
           ),
@@ -270,7 +276,7 @@ class _RecallPromptCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.tertiaryContainer.withValues(alpha: 0.25),
+        color: const Color(0xFFF1F5EB),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -340,13 +346,13 @@ class _MoodSelector extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? AppColors.primaryContainer.withValues(alpha: 0.45)
-                          : AppColors.surfaceContainerLow,
+                          ? _myDayAccentSoft
+                          : _myDaySurface,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isSelected
-                            ? AppColors.primary
-                            : AppColors.outlineVariant.withValues(alpha: 0.5),
+                            ? _myDayAccent
+                            : const Color(0xFFC8D7C8),
                       ),
                     ),
                     child: Column(
@@ -354,7 +360,7 @@ class _MoodSelector extends StatelessWidget {
                         Icon(
                           mood.icon,
                           color: isSelected
-                              ? AppColors.primary
+                              ? _myDayAccent
                               : AppColors.outline,
                         ),
                         const SizedBox(height: 8),
@@ -363,8 +369,8 @@ class _MoodSelector extends StatelessWidget {
                           style: textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: isSelected
-                                ? AppColors.primary
-                                : AppColors.onSurfaceVariant,
+                                ? _myDayAccent
+                                : _myDayTextSoft,
                           ),
                         ),
                       ],
@@ -400,8 +406,8 @@ class _ReflectionActionCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primaryContainer.withValues(alpha: 0.28),
-            AppColors.surfaceContainerHigh,
+            const Color(0xFFDDEBDF),
+            const Color(0xFFF8FBF6),
           ],
         ),
         borderRadius: BorderRadius.circular(28),
@@ -417,7 +423,7 @@ class _ReflectionActionCard extends StatelessWidget {
           Text(
             'Answer simple questions to capture today in a calm, easy way.',
             style: textTheme.bodyMedium?.copyWith(
-              color: AppColors.onSurfaceVariant,
+              color: _myDayTextSoft,
               height: 1.45,
             ),
           ),
@@ -465,18 +471,19 @@ class _DiarySection extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLow,
+          color: _myDaySurface,
           borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: _myDayAccentSoft),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.primaryContainer.withValues(alpha: 0.15),
+                color: _myDayAccentSoft,
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: AppColors.primary, size: 28),
+              child: Icon(icon, color: _myDayAccent, size: 28),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -493,7 +500,7 @@ class _DiarySection extends StatelessWidget {
                   Text(
                     hint,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.onSurfaceVariant,
+                      color: _myDayTextSoft,
                     ),
                   ),
                 ],
@@ -538,7 +545,7 @@ class _DiaryInputOverlayState extends State<_DiaryInputOverlay> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: _myDayBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -553,7 +560,7 @@ class _DiaryInputOverlayState extends State<_DiaryInputOverlay> {
           IconButton(
             icon: const Icon(
               Icons.check_rounded,
-              color: AppColors.secondary,
+              color: _myDayAccent,
               size: 32,
             ),
             onPressed: () {
@@ -610,8 +617,8 @@ class _VoiceDiarySection extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.primaryContainer.withValues(alpha: 0.2),
-            AppColors.surfaceContainerHigh,
+            const Color(0xFFDCEBDD),
+            const Color(0xFFF8FBF7),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -632,7 +639,7 @@ class _VoiceDiarySection extends StatelessWidget {
                 ? Icons.settings_voice_rounded
                 : Icons.mic_rounded,
             size: 48,
-            color: provider.isRecording ? AppColors.error : AppColors.secondary,
+            color: provider.isRecording ? AppColors.error : _myDayAccent,
           ),
           const SizedBox(height: 16),
           Text(
@@ -661,7 +668,7 @@ class _VoiceDiarySection extends StatelessWidget {
                 children: [
                   const Icon(
                     Icons.play_circle_fill_rounded,
-                    color: AppColors.primary,
+                    color: _myDayAccent,
                     size: 32,
                   ),
                   const SizedBox(width: 12),
@@ -709,7 +716,7 @@ class _VoiceDiarySection extends StatelessWidget {
                         Text(
                           "Transcription",
                           style: textTheme.labelLarge?.copyWith(
-                            color: AppColors.primary,
+                            color: _myDayAccent,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -773,7 +780,7 @@ class _HistoryList extends StatelessWidget {
         padding: const EdgeInsets.all(32),
         width: double.infinity,
         decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLow,
+          color: _myDaySurface,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Column(
@@ -788,7 +795,7 @@ class _HistoryList extends StatelessWidget {
               "No entries yet",
               style: Theme.of(
                 context,
-              ).textTheme.titleMedium?.copyWith(color: AppColors.outline),
+              ).textTheme.titleMedium?.copyWith(color: _myDayTextSoft),
             ),
           ],
         ),
@@ -803,13 +810,13 @@ class _HistoryList extends StatelessWidget {
       itemBuilder: (context, index) {
         final entry = history[index];
         return ListTile(
-          tileColor: AppColors.surfaceContainerLow,
+          tileColor: _myDaySurface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           leading: const Icon(
             Icons.calendar_month_rounded,
-            color: AppColors.primary,
+            color: _myDayAccent,
           ),
           title: Text(DateFormat('EEEE, MMM d').format(entry.date)),
           subtitle: Text(

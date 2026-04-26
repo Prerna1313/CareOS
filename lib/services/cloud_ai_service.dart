@@ -87,7 +87,7 @@ Look at this photo and return only JSON with this exact schema:
 {
   "description": "short reassuring description",
   "detectedObjects": ["object1", "object2"],
-  "locationHint": "short likely location such as bedside table, sofa, kitchen counter, entry shelf, or unknown",
+  "locationHint": "one short canonical place label such as bedroom, bedside table, living room, sofa area, kitchen, kitchen counter, dining table, bathroom, bathroom sink, entryway, entry shelf, hallway, study desk, or unknown",
   "unusualObservation": "short note if something may need attention, otherwise empty string",
   "concernLevel": "none|low|medium|high"
 }
@@ -95,6 +95,14 @@ Look at this photo and return only JSON with this exact schema:
 Rules:
 - Keep description short and reassuring.
 - Include common personal items if visible, like diary, specs, keys, medicine, water bottle, phone, bag, shoes.
+- Prefer one stable place label from this set when possible:
+  bedroom, bedside table, living room, sofa area, kitchen, kitchen counter, dining table, bathroom, bathroom sink, entryway, entry shelf, hallway, study desk, unknown.
+- Do not invent many variations for the same place. For example:
+  "next to bed" -> "bedside table"
+  "couch" -> "sofa area"
+  "door area" -> "entryway"
+  "wash basin" -> "bathroom sink"
+- If the scene may suggest a fall, collapse, lying on the floor, unstable posture, clutter risk, sharp-object risk, or spill/slip risk, mention it briefly in unusualObservation.
 - If no clear location is visible, use "unknown".
 - If nothing unusual is visible, use an empty string for unusualObservation and "none" for concernLevel.
 - Return JSON only.

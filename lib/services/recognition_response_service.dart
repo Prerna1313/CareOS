@@ -34,4 +34,10 @@ class RecognitionResponseService {
         .map((m) => RecognitionResponse.fromMap(m))
         .toList();
   }
+
+  List<RecognitionResponse> getResponsesByPatientId(String patientId) {
+    return getAllResponses()
+        .where((response) => response.patientId == patientId)
+        .toList();
+  }
 }

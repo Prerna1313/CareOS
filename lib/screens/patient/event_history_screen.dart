@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../models/patient/patient_contracts.dart';
 import '../../providers/patient_session_provider.dart';
 import '../../providers/reminder_provider.dart';
+import '../../routes/app_routes.dart';
 import '../../services/patient_records_service.dart';
 import '../../theme/app_colors.dart';
 
@@ -53,6 +54,16 @@ class PatientEventHistoryScreen extends StatelessWidget {
           style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Advanced vision report',
+            onPressed: () => Navigator.pushNamed(
+              context,
+              AppRoutes.patientAdvancedVisionReport,
+            ),
+            icon: const Icon(Icons.video_settings_rounded),
+          ),
+        ],
       ),
       body: timeline.isEmpty
           ? Center(

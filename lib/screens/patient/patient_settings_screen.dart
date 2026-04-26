@@ -20,6 +20,10 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
   late final TextEditingController _importantItemsController;
   late bool _autoOrientationEnabled;
   late bool _voicePromptsEnabled;
+  late double _textScaleFactor;
+  late bool _highContrastEnabled;
+  late bool _reducedMotionEnabled;
+  late bool _simpleLayoutEnabled;
 
   @override
   void initState() {
@@ -39,6 +43,10 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     );
     _autoOrientationEnabled = profile?.autoOrientationEnabled ?? true;
     _voicePromptsEnabled = profile?.voicePromptsEnabled ?? true;
+    _textScaleFactor = profile?.textScaleFactor ?? 1.0;
+    _highContrastEnabled = profile?.highContrastEnabled ?? false;
+    _reducedMotionEnabled = profile?.reducedMotionEnabled ?? false;
+    _simpleLayoutEnabled = profile?.simpleLayoutEnabled ?? false;
   }
 
   @override
@@ -69,6 +77,10 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
       importantItems: importantItems,
       autoOrientationEnabled: _autoOrientationEnabled,
       voicePromptsEnabled: _voicePromptsEnabled,
+      textScaleFactor: _textScaleFactor,
+      highContrastEnabled: _highContrastEnabled,
+      reducedMotionEnabled: _reducedMotionEnabled,
+      simpleLayoutEnabled: _simpleLayoutEnabled,
     );
 
     if (!mounted) return;
@@ -141,6 +153,69 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
             title: const Text('Voice prompts'),
             subtitle: const Text(
               'Allow calm spoken orientation and reassurance prompts.',
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Accessibility and responsiveness',
+            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Text size',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<double>(
+                  segments: const [
+                    ButtonSegment(value: 1.0, label: Text('Normal')),
+                    ButtonSegment(value: 1.15, label: Text('Large')),
+                    ButtonSegment(value: 1.3, label: Text('Extra')),
+                  ],
+                  selected: {_textScaleFactor},
+                  onSelectionChanged: (selection) {
+                    setState(() => _textScaleFactor = selection.first);
+                  },
+                ),
+              ],
+            ),
+          ),
+          SwitchListTile(
+            value: _highContrastEnabled,
+            onChanged: (value) => setState(() => _highContrastEnabled = value),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('High contrast'),
+            subtitle: const Text(
+              'Use stronger visual contrast for cards, chips, and support controls.',
+            ),
+          ),
+          SwitchListTile(
+            value: _reducedMotionEnabled,
+            onChanged: (value) => setState(() => _reducedMotionEnabled = value),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Reduced motion'),
+            subtitle: const Text(
+              'Keep interactions calmer by reducing animated movement.',
+            ),
+          ),
+          SwitchListTile(
+            value: _simpleLayoutEnabled,
+            onChanged: (value) => setState(() => _simpleLayoutEnabled = value),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Simple layout'),
+            subtitle: const Text(
+              'Reduce visual load by prioritizing the most important patient sections.',
             ),
           ),
           const SizedBox(height: 16),

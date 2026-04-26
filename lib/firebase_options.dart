@@ -1,6 +1,6 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform, kIsWeb;
+    show TargetPlatform, defaultTargetPlatform, kIsWeb, debugPrint;
 
 /// Firebase options loaded from build-time defines so API keys are not committed.
 ///
@@ -74,10 +74,10 @@ class DefaultFirebaseOptions {
     };
 
     if (value.isEmpty) {
-      throw UnsupportedError(
-        'Missing required --dart-define for $key. '
-        'Add Firebase API keys through build-time configuration.',
+      debugPrint(
+        'Warning: Missing required --dart-define for $key. Using placeholder. App may not work properly.',
       );
+      return 'placeholder_key'; // Return a placeholder to prevent crash
     }
     return value;
   }
