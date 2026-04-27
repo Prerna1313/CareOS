@@ -36,6 +36,11 @@ migrate_working_dir/
 backend/node_modules/
 backend/.env
 backend/.env.local
+ml/fall_model/outputs/
+ml/fall_model/manifests/
+ml/fall_model/.venv/
+ml/fall_model/__pycache__/
+ml/fall_model/**/*.pyc
 
 # Symbolication related
 app.*.symbols
