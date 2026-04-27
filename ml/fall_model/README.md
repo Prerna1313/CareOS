@@ -49,6 +49,12 @@ This workspace maps:
   a staged manifest with `local_path`.
 - `train.py`
   Fine-tunes a `torchvision` video model (`r3d_18`) on the staged manifest.
+- `vertex_job.py`
+  Vertex custom job entrypoint that builds the manifest, stages data from GCS,
+  and runs training on the training VM.
+- `submit_vertex_job.sh`
+  Shell helper for launching a Vertex custom training job with a prebuilt
+  PyTorch GPU container.
 - `requirements.txt`
   Python dependencies for training/staging.
 
@@ -108,11 +114,23 @@ python3 ml/fall_model/train.py \
 Vertex custom training shape:
 
 ```bash
-python3 ml/fall_model/train.py \
-  --manifest /path/to/fall_manifest_staged.csv \
-  --output-dir /gcs/output/path \
-  --epochs 10 \
-  --batch-size 4
+./ml/fall_model/submit_vertex_job.sh
+```
+
+This uses the Vertex custom training flow with:
+
+- `gcloud ai custom-jobs create`
+- local autopackaging from the `ml/` directory
+- the prebuilt PyTorch GPU container
+
+You can override defaults:
+
+```bash
+REGION=us-central1 \
+GCS_PREFIX=gs://careos-sanctuary-7b2a9.firebasestorage.app/vertex-fall-dataset/ \
+OUTPUT_DIR=/tmp/careos_fall_outputs \
+JOB_NAME=careos-fall-train-manual \
+./ml/fall_model/submit_vertex_job.sh
 ```
 
 ## Outputs
