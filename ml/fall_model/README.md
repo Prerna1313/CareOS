@@ -53,7 +53,8 @@ This workspace maps:
   Vertex custom job entrypoint that builds the manifest, stages data from GCS,
   and runs training on the training VM.
 - `submit_vertex_job.sh`
-  Shell helper for launching a Vertex custom training job with a prebuilt
+  Shell helper for packaging the ML workspace, uploading the source tarball to
+  Cloud Storage, and launching a Vertex custom training job with a prebuilt
   PyTorch GPU container.
 - `requirements.txt`
   Python dependencies for training/staging.
@@ -120,7 +121,7 @@ Vertex custom training shape:
 This uses the Vertex custom training flow with:
 
 - `gcloud ai custom-jobs create`
-- local autopackaging from the `ml/` directory
+- a packaged Python source tarball uploaded to Cloud Storage
 - the prebuilt PyTorch GPU container
 
 You can override defaults:
