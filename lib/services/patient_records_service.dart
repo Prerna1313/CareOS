@@ -6,6 +6,8 @@ import '../models/reminder.dart';
 import '../models/reminder_log.dart';
 import '../models/interaction_signal.dart';
 import 'camera_event_service.dart';
+import 'backend_speech_result_service.dart';
+import 'backend_video_result_service.dart';
 import 'confusion_event_service.dart';
 import 'daily_checkin_service.dart';
 import 'event_log_service.dart';
@@ -25,6 +27,8 @@ class PatientRecordsService {
   final PatientInterventionService _interventionService;
   final InteractionSignalService _interactionSignalService;
   final SpeechSignalService _speechSignalService;
+  final BackendVideoResultService _backendVideoResultService;
+  final BackendSpeechResultService _backendSpeechResultService;
 
   PatientRecordsService({
     required PatientContractMapperService mapper,
@@ -36,6 +40,8 @@ class PatientRecordsService {
     required PatientInterventionService interventionService,
     required InteractionSignalService interactionSignalService,
     required SpeechSignalService speechSignalService,
+    required BackendVideoResultService backendVideoResultService,
+    required BackendSpeechResultService backendSpeechResultService,
   }) : _mapper = mapper,
        _eventLogService = eventLogService,
        _confusionEventService = confusionEventService,
@@ -44,7 +50,9 @@ class PatientRecordsService {
        _dailyCheckinService = dailyCheckinService,
        _interventionService = interventionService,
        _interactionSignalService = interactionSignalService,
-       _speechSignalService = speechSignalService;
+       _speechSignalService = speechSignalService,
+       _backendVideoResultService = backendVideoResultService,
+       _backendSpeechResultService = backendSpeechResultService;
 
   PatientStateSnapshot buildStateSnapshot({
     required PatientProfile profile,
@@ -71,11 +79,19 @@ class PatientRecordsService {
     final observationEvents = _cameraEventService.getAllEvents().map(
       (event) => _mapper.fromCameraEvent(event, patientId),
     );
+    final backendVideoEvents = _backendVideoResultService
+        .getByPatientId(patientId)
+        .map(_mapper.fromBackendVideoResult);
+    final backendSpeechEvents = _backendSpeechResultService
+        .getByPatientId(patientId)
+        .map(_mapper.fromBackendSpeechResult);
 
     final combined = [
       ...reminderEvents,
       ...confusionEvents,
       ...observationEvents,
+      ...backendVideoEvents,
+      ...backendSpeechEvents,
     ]..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
     return combined;
@@ -413,6 +429,8 @@ class PatientRecordsService {
       'ignoredReminders': ignoredReminders,
       'confusionMoments': confusionEvents,
       'capturedObservations': observations.length,
+      'backendVideoAnalyses': _backendVideoResultService.getByPatientId(patientId).length,
+      'backendSpeechAnalyses': _backendSpeechResultService.getByPatientId(patientId).length,
       'todayMood': latestEntry?.mood ?? 'Not set',
       'reflectionDone': latestEntry?.summary.isNotEmpty == true,
       'recentItems': recentItems.take(3).toList(),

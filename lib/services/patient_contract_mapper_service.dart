@@ -5,6 +5,7 @@ import '../models/confusion_event.dart';
 import '../models/confusion_state.dart';
 import '../models/memory_item.dart';
 import '../models/my_day/daily_checkin_entry.dart';
+import '../models/patient/backend_processing_models.dart';
 import '../models/patient/patient_contracts.dart';
 import '../models/patient/patient_profile.dart';
 import '../models/reminder.dart';
@@ -170,6 +171,60 @@ class PatientContractMapperService {
       moodSummary: entry.mood,
       engagementSummary: engagementSummary,
       aiSummaryText: entry.summary,
+    );
+  }
+
+  PatientCareEvent fromBackendVideoResult(BackendVideoProcessingResult result) {
+    final severity = switch (result.fallAnalysis.riskLevel) {
+      'high' => 'high',
+      'medium' => 'medium',
+      _ => result.movementAnalysis.movementRiskLevel == 'high'
+          ? 'high'
+          : result.movementAnalysis.movementRiskLevel == 'medium'
+          ? 'medium'
+          : 'info',
+    };
+
+    return PatientCareEvent(
+      eventId: result.clipId,
+      patientId: result.patientId,
+      type: 'backend_video',
+      timestamp: result.createdAt,
+      severity: severity,
+      summary: result.fallAnalysis.summary.isNotEmpty
+          ? result.fallAnalysis.summary
+          : result.movementAnalysis.summary,
+      source: 'careos_backend_video',
+      evidenceRefs: [
+        result.gcsUri,
+        result.sourceEventId,
+        ...result.labels,
+      ].where((item) => item.trim().isNotEmpty).toList(),
+    );
+  }
+
+  PatientCareEvent fromBackendSpeechResult(BackendSpeechProcessingResult result) {
+    final severity = switch (result.assessment.riskLevel) {
+      'high' => 'high',
+      'medium' => 'medium',
+      _ => 'info',
+    };
+
+    return PatientCareEvent(
+      eventId: result.requestId,
+      patientId: result.patientId,
+      type: 'backend_speech',
+      timestamp: result.createdAt,
+      severity: severity,
+      summary: result.assessment.summary.isNotEmpty
+          ? result.assessment.summary
+          : 'Speech processing completed.',
+      source: 'careos_backend_speech',
+      evidenceRefs: [
+        result.gcsUri,
+        result.source,
+        if (result.transcript.trim().isNotEmpty) result.transcript.trim(),
+      ].where((item) => item.trim().isNotEmpty).toList(),
     );
   }
 }

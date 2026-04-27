@@ -43,7 +43,7 @@ class RecognitionService {
     final profile = MemoryReinforcementProfile(
       memoryItemId: item.id,
       importance: importance,
-      nextScheduledAt: DateTime.now().add(const Duration(days: 1)),
+      nextScheduledAt: DateTime.now(),
     );
 
     await _profileBox.put(item.id, profile.toMap());
@@ -83,6 +83,28 @@ class RecognitionService {
     );
 
     await _taskBox.put(task.id, task.toMap());
+  }
+
+  Future<void> ensureTasksForExistingMemories(List<MemoryItem> memories) async {
+    for (final item in memories) {
+      final hasProfile = _profileBox.containsKey(item.id);
+      final hasPendingTask = _taskBox.values
+          .map((value) => RecognitionTask.fromMap(value))
+          .any(
+            (task) =>
+                task.memoryItemId == item.id &&
+                task.status == RecognitionTaskStatus.pending,
+          );
+      if (!hasProfile) {
+        await onMemoryAdded(item);
+      } else if (!hasPendingTask) {
+        final profile = MemoryReinforcementProfile.fromMap(_profileBox.get(item.id));
+        await _generateTaskForProfile(
+          profile.copyWith(nextScheduledAt: DateTime.now()),
+          item,
+        );
+      }
+    }
   }
 
   List<RecognitionTask> getTodayTasks() {

@@ -155,6 +155,14 @@ class _BundleSummaryCard extends StatelessWidget {
                 value: '${observationDigest['totalObservations'] ?? 0}',
               ),
               _SummaryChip(
+                label: 'Video AI',
+                value: '${observationDigest['backendVideoAnalyses'] ?? 0}',
+              ),
+              _SummaryChip(
+                label: 'Speech AI',
+                value: '${observationDigest['backendSpeechAnalyses'] ?? 0}',
+              ),
+              _SummaryChip(
                 label: 'Visual Concerns',
                 value: '${observationDigest['concernCount'] ?? 0}',
               ),
@@ -323,6 +331,10 @@ class _TimelineCard extends StatelessWidget {
         return Icons.visibility_rounded;
       case 'reminder':
         return Icons.notifications_active_rounded;
+      case 'backend_video':
+        return Icons.smart_display_rounded;
+      case 'backend_speech':
+        return Icons.graphic_eq_rounded;
       case 'memory':
         return Icons.photo_library_rounded;
       case 'intervention':

@@ -695,70 +695,80 @@ class _PatientCompanionScreenState extends State<PatientCompanionScreen> {
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 18),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                  child: Column(
                     children: [
-                      Image.asset(
-                        'assets/images/sprout_companion.png',
-                        height: 78,
-                        width: 78,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Sprout Companion',
-                              style: textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF2D2D2D),
-                              ),
+                      Row(
+                        children: [
+                          Image.asset(
+                            'assets/images/sprout_companion.png',
+                            height: 58,
+                            width: 58,
+                            fit: BoxFit.contain,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Sprout Companion',
+                                  style: textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF2D2D2D),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Helping ${profile?.displayName ?? 'you'} stay calm, oriented, and supported.',
+                                  style: textTheme.bodyMedium?.copyWith(
+                                    color: const Color(0xFF5E675E),
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Here to help ${profile?.displayName ?? 'you'} feel calm and supported',
-                              style: textTheme.bodyLarge?.copyWith(
-                                color: const Color(0xFF5E675E),
-                                height: 1.35,
-                              ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.start,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => _toggleVoicePrompts(!voiceEnabled),
+                            icon: Icon(
+                              voiceEnabled
+                                  ? Icons.volume_up_rounded
+                                  : Icons.volume_off_rounded,
                             ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: voiceEnabled
-                            ? 'Turn Sprout voice off'
-                            : 'Turn Sprout voice on',
-                        onPressed: () => _toggleVoicePrompts(!voiceEnabled),
-                        icon: Icon(
-                          voiceEnabled
-                              ? Icons.volume_up_rounded
-                              : Icons.volume_off_rounded,
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Repeat last Sprout message',
-                        onPressed: voiceEnabled
-                            ? () {
-                                _CompanionMessage? latestAssistant;
-                                for (final message in _messages.reversed) {
-                                  if (!message.isUser) {
-                                    latestAssistant = message;
-                                    break;
+                            label: Text(voiceEnabled ? 'Voice on' : 'Voice off'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: voiceEnabled
+                                ? () {
+                                    _CompanionMessage? latestAssistant;
+                                    for (final message in _messages.reversed) {
+                                      if (!message.isUser) {
+                                        latestAssistant = message;
+                                        break;
+                                      }
+                                    }
+                                    if (latestAssistant != null) {
+                                      _voiceService.speak(latestAssistant.text);
+                                    }
                                   }
-                                }
-                                if (latestAssistant != null) {
-                                  _voiceService.speak(latestAssistant.text);
-                                }
-                              }
-                            : null,
-                        icon: const Icon(Icons.record_voice_over_rounded),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded),
+                                : null,
+                            icon: const Icon(Icons.record_voice_over_rounded),
+                            label: const Text('Repeat'),
+                          ),
+                        ],
                       ),
                     ],
                   ),

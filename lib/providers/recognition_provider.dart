@@ -38,6 +38,11 @@ class RecognitionProvider extends ChangeNotifier {
     await _loadTasks();
   }
 
+  Future<void> ensureTasksForExistingMemories(List<MemoryItem> memories) async {
+    await _service.ensureTasksForExistingMemories(memories);
+    await _loadTasks();
+  }
+
   Future<RecognitionTask?> createConfusionSupportTask(
     MemoryItem memoryItem,
   ) async {

@@ -27,6 +27,10 @@ class CloudAIService {
       
       Responses:
       ${entry.answers.map((a) => "${a.question}: ${a.answer}").join('\n')}
+
+      Additional Written Notes:
+      Diary note 1: ${entry.textField1.isNotEmpty ? entry.textField1 : 'No extra note.'}
+      Diary note 2: ${entry.textField2.isNotEmpty ? entry.textField2 : 'No second note.'}
       
       Additional Voice Diary Entry:
       ${entry.voiceNote?.transcription ?? 'No voice note recorded.'}

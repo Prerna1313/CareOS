@@ -60,6 +60,7 @@ app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
     const recognitionConfig = {
       languageCode,
       enableAutomaticPunctuation: true,
+      enableWordTimeOffsets: true,
       model: 'latest_long',
       autoDecodingConfig: {},
     };
@@ -73,6 +74,7 @@ app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
       .map((result) => result.alternatives?.[0])
       .filter(Boolean);
     const transcript = alternatives.map((alt) => alt.transcript || '').join(' ').trim();
+    const timingAnalysis = analyzeWordTiming(alternatives);
     const confidenceAverage = alternatives.length
       ? Number(
           (
@@ -81,7 +83,7 @@ app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
         )
       : 0;
 
-    const transcriptAnalysis = analyzeTranscript(transcript);
+    const transcriptAnalysis = analyzeTranscript(transcript, timingAnalysis);
 
     return res.json({
       request: {
@@ -105,7 +107,10 @@ app.post('/api/speech/transcribe', upload.single('audio'), async (req, res) => {
         repetitions: transcriptAnalysis.repetitions,
         estimatedPauses: transcriptAnalysis.estimatedPauses,
         summary: transcriptAnalysis.summary,
-        evidenceNotes: transcriptAnalysis.evidenceNotes,
+        evidenceNotes: [
+          ...transcriptAnalysis.evidenceNotes,
+          ...(timingAnalysis.summary ? [timingAnalysis.summary] : []),
+        ],
       },
     });
   } catch (error) {
@@ -213,18 +218,23 @@ function sanitizeFileName(input) {
   return input.replace(/[^a-zA-Z0-9._-]/g, '_');
 }
 
-function analyzeTranscript(transcript) {
+function analyzeTranscript(transcript, timingAnalysis = null) {
   const words = tokenize(transcript);
   const hesitations = countMarkers(words, ['um', 'uh', 'hmm', 'maybe', 'wait', 'sorry', 'forgot']);
   const distressMarkers = countMarkers(words, ['help', 'lost', 'scared', 'confused', 'anxious', 'emergency']);
   const repetitions = countImmediateRepetitions(words);
-  const estimatedPauses = estimatePauses(transcript, words.length);
+  const estimatedPauses = timingAnalysis?.estimatedPauses ?? estimatePauses(transcript, words.length);
   const repeatedQueries = /where\s+is|who\s+is|what\s+should\s+i\s+do|am\s+i\s+at\s+home/i.test(transcript) ? 1 : 0;
 
   let riskLevel = 'low';
   if (distressMarkers >= 2 || repeatedQueries >= 1) {
     riskLevel = 'high';
-  } else if (hesitations >= 2 || repetitions >= 2 || estimatedPauses >= 3) {
+  } else if (
+    hesitations >= 2 ||
+    repetitions >= 2 ||
+    estimatedPauses >= 3 ||
+    (timingAnalysis?.longPauseCount || 0) >= 2
+  ) {
     riskLevel = 'medium';
   }
 
@@ -234,6 +244,9 @@ function analyzeTranscript(transcript) {
   if (distressMarkers) evidenceNotes.push(`Detected ${distressMarkers} distress marker(s).`);
   if (repetitions) evidenceNotes.push(`Detected ${repetitions} immediate repetition(s).`);
   if (estimatedPauses) evidenceNotes.push(`Estimated ${estimatedPauses} pause marker(s).`);
+  if (timingAnalysis?.longPauseCount) {
+    evidenceNotes.push(`Detected ${timingAnalysis.longPauseCount} longer pause gap(s) from word timing.`);
+  }
 
   return {
     riskLevel,
@@ -247,6 +260,54 @@ function analyzeTranscript(transcript) {
       : 'Speech analysis looks steady.',
     evidenceNotes,
   };
+}
+
+function analyzeWordTiming(alternatives) {
+  const timedWords = alternatives.flatMap((alt) => alt.words || []);
+  if (!timedWords.length) {
+    return {
+      estimatedPauses: 0,
+      longPauseCount: 0,
+      maxPauseSeconds: 0,
+      summary: '',
+    };
+  }
+
+  let estimatedPauses = 0;
+  let longPauseCount = 0;
+  let maxPauseSeconds = 0;
+  for (let index = 1; index < timedWords.length; index += 1) {
+    const previousEnd = durationToSeconds(timedWords[index - 1].endTime);
+    const currentStart = durationToSeconds(timedWords[index].startTime);
+    const gapSeconds = Math.max(0, currentStart - previousEnd);
+    if (gapSeconds >= 0.6) {
+      estimatedPauses += 1;
+    }
+    if (gapSeconds >= 1.4) {
+      longPauseCount += 1;
+    }
+    if (gapSeconds > maxPauseSeconds) {
+      maxPauseSeconds = gapSeconds;
+    }
+  }
+
+  const roundedMaxPause = Number(maxPauseSeconds.toFixed(2));
+  return {
+    estimatedPauses,
+    longPauseCount,
+    maxPauseSeconds: roundedMaxPause,
+    summary:
+      estimatedPauses > 0
+        ? `Word timing found ${estimatedPauses} pause gap(s); longest gap ${roundedMaxPause}s.`
+        : 'Word timing looked steady.',
+  };
+}
+
+function durationToSeconds(duration) {
+  if (!duration) return 0;
+  const seconds = Number(duration.seconds || 0);
+  const nanos = Number(duration.nanos || 0) / 1e9;
+  return seconds + nanos;
 }
 
 function tokenize(transcript) {

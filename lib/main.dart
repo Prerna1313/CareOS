@@ -36,6 +36,8 @@ import 'services/speech_signal_service.dart';
 import 'services/advanced_vision_contract_service.dart';
 import 'services/advanced_speech_contract_service.dart';
 import 'services/backend_processing_service.dart';
+import 'services/backend_speech_result_service.dart';
+import 'services/backend_video_result_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
@@ -57,6 +59,8 @@ void main() async {
   final interactionSignalService = InteractionSignalService();
   final speechSignalService = SpeechSignalService();
   final backendProcessingService = BackendProcessingService();
+  final backendSpeechResultService = BackendSpeechResultService();
+  final backendVideoResultService = BackendVideoResultService();
 
   // Late initialization for services that depend on Firebase/AI
   late RecognitionService recognitionService;
@@ -76,6 +80,8 @@ void main() async {
     await patientInterventionService.init();
     await interactionSignalService.init();
     await speechSignalService.init();
+    await backendSpeechResultService.init();
+    await backendVideoResultService.init();
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
@@ -90,6 +96,7 @@ void main() async {
     dailySummaryService = DailySummaryService(
       cloudAiService,
       backendProcessingService: backendProcessingService,
+      backendSpeechResultService: backendSpeechResultService,
     );
 
     await recognitionService.init();
@@ -128,6 +135,8 @@ void main() async {
       interactionSignalService: interactionSignalService,
       speechSignalService: speechSignalService,
       backendProcessingService: backendProcessingService,
+      backendSpeechResultService: backendSpeechResultService,
+      backendVideoResultService: backendVideoResultService,
     ),
   );
 }
@@ -154,6 +163,8 @@ class CareOSApp extends StatelessWidget {
   final InteractionSignalService interactionSignalService;
   final SpeechSignalService speechSignalService;
   final BackendProcessingService backendProcessingService;
+  final BackendSpeechResultService backendSpeechResultService;
+  final BackendVideoResultService backendVideoResultService;
 
   const CareOSApp({
     super.key,
@@ -176,6 +187,8 @@ class CareOSApp extends StatelessWidget {
     required this.interactionSignalService,
     required this.speechSignalService,
     required this.backendProcessingService,
+    required this.backendSpeechResultService,
+    required this.backendVideoResultService,
   });
 
   @override
@@ -192,14 +205,18 @@ class CareOSApp extends StatelessWidget {
       interventionService: patientInterventionService,
       interactionSignalService: interactionSignalService,
       speechSignalService: speechSignalService,
+      backendVideoResultService: backendVideoResultService,
+      backendSpeechResultService: backendSpeechResultService,
     );
     final advancedVisionContractService = AdvancedVisionContractService(
       cameraEventService,
       patientRecordsService,
+      backendVideoResultService,
     );
     final advancedSpeechContractService = AdvancedSpeechContractService(
       speechSignalService,
       patientRecordsService,
+      backendSpeechResultService,
     );
 
     return MultiProvider(
@@ -215,6 +232,12 @@ class CareOSApp extends StatelessWidget {
         Provider<SpeechSignalService>.value(value: speechSignalService),
         Provider<BackendProcessingService>.value(
           value: backendProcessingService,
+        ),
+        Provider<BackendSpeechResultService>.value(
+          value: backendSpeechResultService,
+        ),
+        Provider<BackendVideoResultService>.value(
+          value: backendVideoResultService,
         ),
         Provider<PatientRecordsService>.value(value: patientRecordsService),
         Provider<AdvancedVisionContractService>.value(

@@ -22,6 +22,7 @@ class RecognitionTasksPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final recognitionProvider = context.watch<RecognitionProvider>();
+    final memoryProvider = context.watch<MemoryProvider>();
     final profile = context.watch<PatientSessionProvider>().profile;
     final digest = recognitionProvider.buildRecognitionDigest(
       profile?.patientId ?? 'patient_local_demo',
@@ -109,6 +110,22 @@ class RecognitionTasksPage extends StatelessWidget {
             _TaskSection(title: 'Today\'s task', tasks: dailyTasks),
             const SizedBox(height: 20),
             _TaskSection(title: 'Optional practice', tasks: optionalTasks),
+            if (dailyTasks.isEmpty &&
+                optionalTasks.isEmpty &&
+                memoryProvider.memories.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      recognitionProvider.ensureTasksForExistingMemories(
+                    memoryProvider.memories,
+                  ),
+                  icon: const Icon(Icons.auto_awesome_rounded),
+                  label: const Text('Create tasks from saved memories'),
+                ),
+              ),
+            ],
           ],
         ),
       ),

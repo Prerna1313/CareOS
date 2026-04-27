@@ -14,11 +14,13 @@ class CameraService {
   CameraController? _controller;
   List<CameraDescription> _cameras = [];
   bool _isInitialized = false;
+  bool _isRecordingVideo = false;
 
   CameraService(this._eventService);
 
   CameraController? get controller => _controller;
   bool get isInitialized => _isInitialized;
+  bool get isRecordingVideo => _isRecordingVideo;
 
   Future<void> init() async {
     _cameras = await availableCameras();
@@ -31,7 +33,7 @@ class CameraService {
     _controller = CameraController(
       description,
       ResolutionPreset.medium,
-      enableAudio: false,
+      enableAudio: !kIsWeb,
     );
 
     try {
@@ -88,6 +90,43 @@ class CameraService {
 
     await _eventService.logEvent(event);
     return event;
+  }
+
+  Future<void> startVideoRecording() async {
+    if (kIsWeb) {
+      throw Exception('Video recording is not available on web yet.');
+    }
+    if (!_isInitialized || _controller == null) {
+      throw Exception('Camera not initialized');
+    }
+    if (_isRecordingVideo) return;
+
+    await _controller!.startVideoRecording();
+    _isRecordingVideo = true;
+  }
+
+  Future<String> stopVideoRecording() async {
+    if (!_isInitialized || _controller == null) {
+      throw Exception('Camera not initialized');
+    }
+    if (!_isRecordingVideo) {
+      throw Exception('Video recording is not active');
+    }
+
+    final XFile file = await _controller!.stopVideoRecording();
+    _isRecordingVideo = false;
+
+    final directory = await getApplicationDocumentsDirectory();
+    final fileName = '${_uuid.v4()}.mp4';
+    final savedPath = p.join(directory.path, 'clips', fileName);
+
+    final clipsDir = Directory(p.join(directory.path, 'clips'));
+    if (!clipsDir.existsSync()) {
+      clipsDir.createSync(recursive: true);
+    }
+
+    await File(file.path).copy(savedPath);
+    return savedPath;
   }
 
   Future<void> dispose() async {

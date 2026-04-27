@@ -10,6 +10,9 @@ import '../../../routes/app_routes.dart';
 import '../../../theme/app_colors.dart';
 import '../../../services/camera_service.dart';
 import '../../../models/camera_event.dart';
+import '../../../models/patient/backend_processing_models.dart';
+import '../../../services/backend_processing_service.dart';
+import '../../../services/backend_video_result_service.dart';
 import '../../../services/vision_service.dart';
 import '../../../services/camera_event_service.dart';
 
@@ -26,10 +29,18 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
   late CameraEventService _eventService;
   bool _isCapturing = false;
   bool _isAnalyzing = false;
+  bool _isMonitoring = false;
+  bool _isRecordingClip = false;
+  bool _isAnalyzingClip = false;
   Timer? _intervalTimer;
+  Timer? _sessionTicker;
   bool _autoCaptureEnabled = false;
+  DateTime? _monitoringStartedAt;
+  Duration _monitoringDuration = Duration.zero;
   VisionAnalysisResult? _latestAnalysisResult;
   String? _latestAnalyzedImagePath;
+  BackendVideoProcessingResult? _latestVideoResult;
+  DateTime? _lastAutoTriggeredClipAt;
 
   @override
   void initState() {
@@ -48,6 +59,7 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
   @override
   void dispose() {
     _intervalTimer?.cancel();
+    _sessionTicker?.cancel();
     _cameraService.dispose();
     super.dispose();
   }
@@ -56,27 +68,92 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
     setState(() {
       _autoCaptureEnabled = !_autoCaptureEnabled;
       if (_autoCaptureEnabled) {
-        _intervalTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
-          _capture();
-        });
+        _startAutoCaptureTimer();
       } else {
-        _intervalTimer?.cancel();
+        _stopAutoCaptureTimer();
       }
     });
   }
 
-  Future<void> _capture() async {
+  void _startAutoCaptureTimer() {
+    _intervalTimer?.cancel();
+    _intervalTimer = Timer.periodic(const Duration(seconds: 20), (timer) {
+      _capture(triggerReason: _isMonitoring ? 'live_monitoring_interval' : 'auto_capture');
+    });
+  }
+
+  void _stopAutoCaptureTimer() {
+    _intervalTimer?.cancel();
+    _intervalTimer = null;
+  }
+
+  Future<void> _toggleMonitoringSession() async {
+    if (_isMonitoring) {
+      await _stopMonitoringSession();
+      return;
+    }
+
+    await context.read<PatientSessionProvider>().touchActivity(
+      'Live observation running',
+      contextSummary: 'The app is monitoring the surroundings for safety changes.',
+    );
+
+    setState(() {
+      _isMonitoring = true;
+      _monitoringStartedAt = DateTime.now();
+      _monitoringDuration = Duration.zero;
+      _autoCaptureEnabled = true;
+    });
+
+    _startAutoCaptureTimer();
+    _sessionTicker?.cancel();
+    _sessionTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      final startedAt = _monitoringStartedAt;
+      if (!mounted || startedAt == null) return;
+      setState(() {
+        _monitoringDuration = DateTime.now().difference(startedAt);
+      });
+    });
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Live observation started. The app will capture interval snapshots.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _stopMonitoringSession() async {
+    _stopAutoCaptureTimer();
+    _sessionTicker?.cancel();
+    await context.read<PatientSessionProvider>().touchActivity(
+      'Live observation stopped',
+      contextSummary: 'The monitoring session has ended.',
+    );
+    if (!mounted) return;
+    setState(() {
+      _isMonitoring = false;
+      _autoCaptureEnabled = false;
+      _monitoringStartedAt = null;
+      _monitoringDuration = Duration.zero;
+    });
+  }
+
+  Future<void> _capture({String triggerReason = 'manual_snapshot'}) async {
     if (_isCapturing) return;
 
     setState(() => _isCapturing = true);
     try {
       await context.read<PatientSessionProvider>().touchActivity(
         'Capturing an observation',
-        contextSummary: 'A new surroundings snapshot is being captured.',
+        contextSummary: _isMonitoring
+            ? 'A live observation snapshot is being captured.'
+            : 'A new surroundings snapshot is being captured.',
       );
       final event = await _cameraService.captureSnapshot();
       if (mounted) {
-        _runAnalysis(event);
+        _runAnalysis(event, triggerReason: triggerReason);
       }
     } catch (e) {
       if (mounted) {
@@ -89,7 +166,10 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
     }
   }
 
-  Future<void> _runAnalysis(CameraEvent event) async {
+  Future<void> _runAnalysis(
+    CameraEvent event, {
+    String triggerReason = 'manual_snapshot',
+  }) async {
     final patientSession = context.read<PatientSessionProvider>();
     setState(() => _isAnalyzing = true);
     try {
@@ -118,7 +198,8 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
           _latestAnalysisResult = result;
           _latestAnalyzedImagePath = event.imagePath;
         });
-        _showCaptureFeedback(updatedEvent);
+        _showCaptureFeedback(updatedEvent, triggerReason: triggerReason);
+        _maybeAutoTriggerSafetyClip(updatedEvent);
       }
     } catch (e) {
       debugPrint('Analysis failed: $e');
@@ -127,7 +208,7 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
     }
   }
 
-  void _showCaptureFeedback(CameraEvent event) {
+  void _showCaptureFeedback(CameraEvent event, {String triggerReason = 'manual_snapshot'}) {
     final String suggestion = event.detectedType == 'person'
         ? 'Looks like a person'
         : 'Looks like a place or event';
@@ -143,6 +224,7 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
     ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        showCloseIcon: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,6 +259,16 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
             ],
+            if (_isMonitoring && triggerReason == 'live_monitoring_interval') ...[
+              const SizedBox(height: 4),
+              Text(
+                'Captured during live observation.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
           ],
         ),
         action: SnackBarAction(
@@ -187,6 +279,167 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _recordShortClip({String triggerReason = 'manual_clip'}) async {
+    if (_isRecordingClip || _isAnalyzingClip) return;
+
+    try {
+      await context.read<PatientSessionProvider>().touchActivity(
+        'Recording observation clip',
+        contextSummary: 'A short live observation clip is being recorded for safety analysis.',
+      );
+
+      setState(() => _isRecordingClip = true);
+      await _cameraService.startVideoRecording();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: Duration(seconds: 2),
+          content: Text(
+            triggerReason == 'manual_clip'
+                ? 'Recording a short safety clip...'
+                : 'Safety concern detected. Recording a short clip...',
+          ),
+        ),
+      );
+
+      await Future<void>.delayed(const Duration(seconds: 8));
+      final clipPath = await _cameraService.stopVideoRecording();
+      if (!mounted) return;
+      setState(() => _isRecordingClip = false);
+      await _analyzeObservationClip(clipPath, triggerReason: triggerReason);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isRecordingClip = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Clip recording failed: $e')));
+    }
+  }
+
+  Future<void> _analyzeObservationClip(
+    String clipPath, {
+    String triggerReason = 'manual_clip',
+  }) async {
+    final backend = context.read<BackendProcessingService>();
+    final resultStore = context.read<BackendVideoResultService>();
+    final patientSession = context.read<PatientSessionProvider>();
+
+    if (!backend.isConfigured) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Backend is not configured for live clip analysis yet.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isAnalyzingClip = true);
+    try {
+      final clipId = 'clip_${DateTime.now().millisecondsSinceEpoch}';
+      final result = await backend.processObservationClip(
+        patientId: patientSession.patientId,
+        clipId: clipId,
+        clipPath: clipPath,
+        sourceEventId: _latestAnalyzedImagePath ?? 'live_observation',
+        triggerReason: triggerReason,
+      );
+
+      if (result != null) {
+        await resultStore.saveResult(result);
+        await patientSession.touchActivity(
+          'Observation clip analyzed',
+          contextSummary: result.fallAnalysis.summary.isNotEmpty
+              ? result.fallAnalysis.summary
+              : result.movementAnalysis.summary,
+        );
+      }
+
+      if (!mounted) return;
+      setState(() => _latestVideoResult = result);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result == null
+                ? 'Clip saved, but no backend result was returned.'
+                : 'Clip analyzed: ${result.fallAnalysis.riskLevel.toUpperCase()} fall risk, ${result.movementAnalysis.movementRiskLevel.toUpperCase()} movement risk.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Clip analysis failed: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _isAnalyzingClip = false);
+      }
+    }
+  }
+
+  void _maybeAutoTriggerSafetyClip(CameraEvent event) {
+    if (!_isMonitoring ||
+        _isRecordingClip ||
+        _isAnalyzingClip ||
+        !_cameraService.isInitialized) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final lastTrigger = _lastAutoTriggeredClipAt;
+    if (lastTrigger != null && now.difference(lastTrigger) < const Duration(minutes: 2)) {
+      return;
+    }
+
+    final triggerReason = _autoClipTriggerReason(event);
+    if (triggerReason == null) return;
+
+    _lastAutoTriggeredClipAt = now;
+    unawaited(_recordShortClip(triggerReason: triggerReason));
+  }
+
+  String? _autoClipTriggerReason(CameraEvent event) {
+    final note = '${event.note} ${event.unusualObservation}'.toLowerCase();
+    final objects = event.detectedObjects.map((item) => item.toLowerCase()).toList();
+
+    final possibleFall = note.contains('fall') ||
+        note.contains('collapse') ||
+        note.contains('lying on the floor') ||
+        note.contains('slumped') ||
+        (event.concernLevel == 'high' &&
+            (note.contains('floor') || note.contains('ground')));
+    if (possibleFall) {
+      return 'auto_possible_fall';
+    }
+
+    final riskyScene = event.concernLevel == 'high' ||
+        note.contains('spill') ||
+        note.contains('clutter') ||
+        note.contains('blocked') ||
+        note.contains('sharp') ||
+        note.contains('stove') ||
+        objects.any(
+          (item) =>
+              item.contains('spill') ||
+              item.contains('knife') ||
+              item.contains('sharp'),
+        );
+    if (riskyScene) {
+      return 'auto_risky_scene';
+    }
+
+    final wanderingStyle = event.concernLevel == 'medium' &&
+        event.locationHint.toLowerCase() == 'unknown' &&
+        (note.contains('unclear') || note.contains('wandering'));
+    if (wanderingStyle) {
+      return 'auto_wandering_review';
+    }
+
+    return null;
   }
 
   Future<void> _saveAsMemory(CameraEvent event) async {
@@ -296,6 +549,20 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
               ),
             ),
 
+          if (_latestVideoResult != null)
+            Positioned(
+              top: 360,
+              right: 16,
+              child: _VideoAnalysisPreviewCard(
+                result: _latestVideoResult!,
+                onClose: () {
+                  setState(() {
+                    _latestVideoResult = null;
+                  });
+                },
+              ),
+            ),
+
           // Top Controls
           Positioned(
             top: 60,
@@ -329,7 +596,7 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'LIVE OBSERVATION',
+                        _isMonitoring ? 'LIVE OBSERVATION ON' : 'LIVE OBSERVATION',
                         style: textTheme.labelLarge?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -362,40 +629,124 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
             right: 0,
             child: Column(
               children: [
-                // Auto Capture Toggle
-                GestureDetector(
-                  onTap: _toggleAutoCapture,
-                  child: Container(
+                if (_isMonitoring)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
+                      horizontal: 18,
+                      vertical: 12,
                     ),
                     decoration: BoxDecoration(
-                      color: _autoCaptureEnabled
-                          ? AppColors.primary
-                          : Colors.black54,
-                      borderRadius: BorderRadius.circular(30),
+                      color: Colors.black.withValues(alpha: 0.6),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.white24),
                     ),
-                    child: Row(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          _autoCaptureEnabled ? Icons.timer : Icons.timer_off,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
                         Text(
-                          _autoCaptureEnabled ? 'AUTO ON (15s)' : 'AUTO OFF',
-                          style: textTheme.labelMedium?.copyWith(
+                          'Monitoring active',
+                          style: textTheme.labelLarge?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatDuration(_monitoringDuration),
+                          style: textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Interval snapshots run every 20 seconds. You can also record a short safety clip.',
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: Colors.white70,
+                            height: 1.35,
                           ),
                         ),
                       ],
                     ),
                   ),
+
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    GestureDetector(
+                      onTap: _toggleMonitoringSession,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _isMonitoring
+                              ? const Color(0xFFE45B5B)
+                              : Colors.black54,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _isMonitoring ? Icons.stop_circle_rounded : Icons.play_circle_fill_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _isMonitoring ? 'STOP MONITORING' : 'START MONITORING',
+                              style: textTheme.labelMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    GestureDetector(
+                      onTap: _toggleAutoCapture,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _autoCaptureEnabled
+                              ? AppColors.primary
+                              : Colors.black54,
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _autoCaptureEnabled ? Icons.timer : Icons.timer_off,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _autoCaptureEnabled ? 'AUTO ON (20s)' : 'AUTO OFF',
+                              style: textTheme.labelMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+                // Auto Capture Toggle
                 const SizedBox(height: 32),
 
                 // Capture Button
@@ -429,6 +780,34 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _isRecordingClip || _isAnalyzingClip
+                      ? null
+                      : () => _recordShortClip(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                  ),
+                  icon: _isRecordingClip
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.video_call_rounded),
+                  label: Text(
+                    _isRecordingClip
+                        ? 'Recording clip...'
+                        : _isAnalyzingClip
+                        ? 'Analyzing clip...'
+                        : 'Record short clip',
+                  ),
+                ),
+                const SizedBox(height: 8),
                 TextButton.icon(
                   onPressed: () async {
                     await _cameraService.switchCamera();
@@ -491,6 +870,47 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
               ),
             ),
 
+          if (_isAnalyzingClip)
+            Positioned(
+              top: 172,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE45B5B).withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Analyzing short observation clip...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
           // Placeholder for Future ML Detection
           const Positioned(
             bottom: 20,
@@ -511,6 +931,12 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
         ],
       ),
     );
+  }
+
+  String _formatDuration(Duration value) {
+    final minutes = value.inMinutes.toString().padLeft(2, '0');
+    final seconds = (value.inSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 }
 
@@ -651,5 +1077,168 @@ class _DetectionPreviewCard extends StatelessWidget {
       default:
         return const Color(0xFFFF5252);
     }
+  }
+}
+
+class _VideoAnalysisPreviewCard extends StatelessWidget {
+  final BackendVideoProcessingResult result;
+  final VoidCallback onClose;
+
+  const _VideoAnalysisPreviewCard({
+    required this.result,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Latest clip result',
+                  style: textTheme.labelLarge?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: onClose,
+                child: const Icon(
+                  Icons.close_rounded,
+                  size: 18,
+                  color: Colors.white70,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _ResultChip(
+            label: 'Fall risk',
+            value: result.fallAnalysis.riskLevel.toUpperCase(),
+            color: _severityColor(result.fallAnalysis.riskLevel),
+          ),
+          const SizedBox(height: 8),
+          _ResultChip(
+            label: 'Movement',
+            value: result.movementAnalysis.movementRiskLevel.toUpperCase(),
+            color: _severityColor(result.movementAnalysis.movementRiskLevel),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            result.fallAnalysis.summary.isNotEmpty
+                ? result.fallAnalysis.summary
+                : result.movementAnalysis.summary,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.bodySmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.85),
+              height: 1.35,
+            ),
+          ),
+          if (result.labels.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: result.labels
+                  .take(4)
+                  .map(
+                    (label) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        label,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: Colors.white70,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Color _severityColor(String level) {
+    switch (level.toLowerCase()) {
+      case 'high':
+        return const Color(0xFFE45B5B);
+      case 'medium':
+        return const Color(0xFFFFB74D);
+      default:
+        return const Color(0xFF7BCB90);
+    }
+  }
+}
+
+class _ResultChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _ResultChip({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: textTheme.labelMedium?.copyWith(
+                color: Colors.white70,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              value,
+              style: textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -41,6 +41,22 @@ class BackendSpeechAssessment {
       evidenceNotes: List<String>.from(map['evidenceNotes'] ?? const []),
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'assessmentId': assessmentId,
+      'analyzedAt': analyzedAt.toIso8601String(),
+      'source': source,
+      'riskLevel': riskLevel,
+      'repeatedQueries': repeatedQueries,
+      'hesitations': hesitations,
+      'distressMarkers': distressMarkers,
+      'repetitions': repetitions,
+      'estimatedPauses': estimatedPauses,
+      'summary': summary,
+      'evidenceNotes': evidenceNotes,
+    };
+  }
 }
 
 class BackendSpeechProcessingResult {
@@ -83,6 +99,22 @@ class BackendSpeechProcessingResult {
       ),
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'request': {
+        'requestId': requestId,
+        'patientId': patientId,
+        'createdAt': createdAt.toIso8601String(),
+        'source': source,
+        'gcsUri': gcsUri,
+        'status': status,
+      },
+      'transcript': transcript,
+      'confidenceAverage': confidenceAverage,
+      'assessment': assessment.toMap(),
+    };
+  }
 }
 
 class BackendVideoMovementAnalysis {
@@ -122,6 +154,20 @@ class BackendVideoMovementAnalysis {
       evidenceNotes: List<String>.from(map['evidenceNotes'] ?? const []),
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'analysisId': analysisId,
+      'analyzedAt': analyzedAt.toIso8601String(),
+      'movementRiskLevel': movementRiskLevel,
+      'locationSwitches': locationSwitches,
+      'shortIntervalSwitches': shortIntervalSwitches,
+      'repeatedLoopCount': repeatedLoopCount,
+      'distinctVisitedLocations': distinctVisitedLocations,
+      'summary': summary,
+      'evidenceNotes': evidenceNotes,
+    };
+  }
 }
 
 class BackendVideoFallAnalysis {
@@ -157,6 +203,19 @@ class BackendVideoFallAnalysis {
       summary: map['summary'] as String? ?? '',
       evidenceNotes: List<String>.from(map['evidenceNotes'] ?? const []),
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'analysisId': analysisId,
+      'clipId': clipId,
+      'analyzedAt': analyzedAt.toIso8601String(),
+      'riskLevel': riskLevel,
+      'confidence': confidence,
+      'modelSource': modelSource,
+      'summary': summary,
+      'evidenceNotes': evidenceNotes,
+    };
   }
 }
 
@@ -204,5 +263,22 @@ class BackendVideoProcessingResult {
       ),
       labels: List<String>.from(map['labels'] ?? const []),
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'request': {
+        'clipId': clipId,
+        'patientId': patientId,
+        'sourceEventId': sourceEventId,
+        'triggerReason': triggerReason,
+        'createdAt': createdAt.toIso8601String(),
+        'gcsUri': gcsUri,
+        'status': status,
+      },
+      'movementAnalysis': movementAnalysis.toMap(),
+      'fallAnalysis': fallAnalysis.toMap(),
+      'labels': labels,
+    };
   }
 }

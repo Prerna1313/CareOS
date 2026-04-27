@@ -72,38 +72,47 @@ class _MyDayChatOverlayState extends State<MyDayChatOverlay>
               children: [
                 // EXACT HEADER FROM IMAGE
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 32, 24, 20),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildHeaderCompanion(),
-                      const SizedBox(width: 20),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "My Day Guide",
-                            style: textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF2D2D2D),
-                              letterSpacing: -0.5,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "My Day Guide",
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFF2D2D2D),
+                                letterSpacing: -0.3,
+                              ),
                             ),
-                          ),
-                          Text(
-                            "Helping you remember",
-                            style: textTheme.titleLarge?.copyWith(
-                              color: const Color(0xFF555555),
-                              fontWeight: FontWeight.w400,
+                            const SizedBox(height: 2),
+                            Text(
+                              "Helping you remember",
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: textTheme.titleMedium?.copyWith(
+                                color: const Color(0xFF555555),
+                                fontWeight: FontWeight.w400,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       IconButton(
                         onPressed: () => provider.dismissOverlay(),
+                        visualDensity: VisualDensity.compact,
                         icon: const Icon(
                           Icons.close_rounded,
                           color: Colors.grey,
-                          size: 28,
+                          size: 24,
                         ),
                       ),
                     ],
@@ -114,8 +123,10 @@ class _MyDayChatOverlayState extends State<MyDayChatOverlay>
                   padding: const EdgeInsets.fromLTRB(24, 0, 24, 18),
                   child: Column(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 6,
+                        alignment: WrapAlignment.spaceBetween,
                         children: [
                           Text(
                             provider.isChatCompleted
@@ -198,8 +209,8 @@ class _MyDayChatOverlayState extends State<MyDayChatOverlay>
   Widget _buildHeaderCompanion() {
     return Image.asset(
       'assets/images/sprout_companion.png',
-      height: 90,
-      width: 90,
+      height: 64,
+      width: 64,
       fit: BoxFit.contain,
     );
   }

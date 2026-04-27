@@ -177,16 +177,26 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: 8),
-                SegmentedButton<double>(
-                  segments: const [
-                    ButtonSegment(value: 1.0, label: Text('Normal')),
-                    ButtonSegment(value: 1.15, label: Text('Large')),
-                    ButtonSegment(value: 1.3, label: Text('Extra')),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _TextSizeChip(
+                      label: 'Normal',
+                      selected: _textScaleFactor == 1.0,
+                      onTap: () => setState(() => _textScaleFactor = 1.0),
+                    ),
+                    _TextSizeChip(
+                      label: 'Large',
+                      selected: _textScaleFactor == 1.15,
+                      onTap: () => setState(() => _textScaleFactor = 1.15),
+                    ),
+                    _TextSizeChip(
+                      label: 'Extra Large',
+                      selected: _textScaleFactor == 1.3,
+                      onTap: () => setState(() => _textScaleFactor = 1.3),
+                    ),
                   ],
-                  selected: {_textScaleFactor},
-                  onSelectionChanged: (selection) {
-                    setState(() => _textScaleFactor = selection.first);
-                  },
                 ),
               ],
             ),
@@ -222,6 +232,34 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
           FilledButton(onPressed: _save, child: const Text('Save Settings')),
         ],
       ),
+    );
+  }
+}
+
+class _TextSizeChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _TextSizeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      labelStyle: TextStyle(
+        fontWeight: FontWeight.w700,
+        color: selected ? AppColors.primary : AppColors.onSurfaceVariant,
+      ),
+      selectedColor: AppColors.primaryContainer,
+      backgroundColor: AppColors.surfaceBright,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     );
   }
 }

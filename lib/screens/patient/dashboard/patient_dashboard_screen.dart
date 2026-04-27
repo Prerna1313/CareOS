@@ -109,6 +109,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           'The patient requested fast reassurance and support.',
     );
     if (!mounted) return;
+    await Navigator.pushNamed(context, AppRoutes.patientOrientationSupport);
     reminderProvider.triggerMockConfusion();
   }
 
@@ -2288,7 +2289,10 @@ class _DailySummarySnapshotCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Today at a glance',
@@ -2296,7 +2300,6 @@ class _DailySummarySnapshotCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const Spacer(),
               if (digest['reflectionDone'] == true)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -2335,7 +2338,7 @@ class _DailySummarySnapshotCard extends StatelessWidget {
               crossAxisCount: 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 2.4,
+              childAspectRatio: 1.75,
             ),
             itemCount: quickStats.length,
             itemBuilder: (context, index) {
@@ -2357,6 +2360,8 @@ class _DailySummarySnapshotCard extends StatelessWidget {
                         children: [
                           Text(
                             stat.label,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: textTheme.labelMedium?.copyWith(
                               color: AppColors.onSurfaceVariant,
                               fontWeight: FontWeight.w700,
@@ -2365,6 +2370,8 @@ class _DailySummarySnapshotCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             stat.value,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
@@ -2379,7 +2386,10 @@ class _DailySummarySnapshotCard extends StatelessWidget {
           ),
           if (stableItemSightings.isNotEmpty) ...[
             const SizedBox(height: 18),
-            Row(
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
                   'Recently seen important items',
@@ -2387,7 +2397,6 @@ class _DailySummarySnapshotCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Spacer(),
                 TextButton(
                   onPressed: () => Navigator.pushNamed(
                     context,
@@ -2540,7 +2549,10 @@ class _PassiveSafetySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Safety Monitor',
@@ -2548,7 +2560,6 @@ class _PassiveSafetySection extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const Spacer(),
               TextButton(
                 onPressed: () => Navigator.pushNamed(
                   context,

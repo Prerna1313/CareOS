@@ -1,15 +1,19 @@
 import '../models/camera_event.dart';
 import '../models/patient/advanced_vision_contracts.dart';
+import '../models/patient/backend_processing_models.dart';
+import 'backend_video_result_service.dart';
 import 'camera_event_service.dart';
 import 'patient_records_service.dart';
 
 class AdvancedVisionContractService {
   final CameraEventService _cameraEventService;
   final PatientRecordsService _patientRecordsService;
+  final BackendVideoResultService _backendVideoResultService;
 
   AdvancedVisionContractService(
     this._cameraEventService,
     this._patientRecordsService,
+    this._backendVideoResultService,
   );
 
   AdvancedVisionBundle buildBundle(String patientId) {
@@ -20,13 +24,24 @@ class AdvancedVisionContractService {
         ),
       );
     final visualDigest = _patientRecordsService.buildVisualBehaviorDigest();
+    final backendResults = _backendVideoResultService.getByPatientId(patientId);
     final incidentRecords = _buildIncidentRecords(patientId, events, visualDigest);
-    final clipRequests = _buildClipRequests(patientId, events, incidentRecords);
-    final movementAnalysis = _buildMovementAnalysis(patientId, visualDigest);
+    final clipRequests = _buildClipRequests(
+      patientId,
+      events,
+      incidentRecords,
+      backendResults,
+    );
+    final movementAnalysis = _buildMovementAnalysis(
+      patientId,
+      visualDigest,
+      backendResults,
+    );
     final latestFallAnalysis = _buildLatestFallAnalysis(
       patientId,
       clipRequests,
       visualDigest,
+      backendResults,
     );
 
     return AdvancedVisionBundle(
@@ -42,16 +57,41 @@ class AdvancedVisionContractService {
     String patientId,
     List<CameraEvent> events,
     List<AdvancedVisionIncidentRecord> incidents,
+    List<BackendVideoProcessingResult> backendResults,
   ) {
-    final requests = <VideoObservationClipRequest>[];
+    final requests = backendResults
+        .map(
+          (result) => VideoObservationClipRequest(
+            clipId: result.clipId,
+            patientId: result.patientId,
+            sourceEventId: result.sourceEventId,
+            createdAt: result.createdAt,
+            localMediaPath: result.gcsUri.isNotEmpty ? result.gcsUri : 'uploaded_clip',
+            triggerReason: result.triggerReason,
+            processingStatus: _statusFromBackend(result.status),
+            metadata: {
+              'source': 'careos_backend',
+              'labels': result.labels,
+              'fallRisk': result.fallAnalysis.riskLevel,
+              'movementRisk': result.movementAnalysis.movementRiskLevel,
+            },
+          ),
+        )
+        .toList();
+
+    final existingClipIds = requests.map((item) => item.clipId).toSet();
     for (final incident in incidents) {
       final matchingEvent = events.firstWhere(
         (event) => incident.evidenceRefs.contains(event.imagePath),
         orElse: () => events.first,
       );
+      final incidentClipId = 'clip_${incident.incidentId}';
+      if (existingClipIds.contains(incidentClipId)) {
+        continue;
+      }
       requests.add(
         VideoObservationClipRequest(
-          clipId: 'clip_${incident.incidentId}',
+          clipId: incidentClipId,
           patientId: patientId,
           sourceEventId: matchingEvent.id,
           createdAt: DateTime.now(),
@@ -169,7 +209,29 @@ class AdvancedVisionContractService {
   MovementAnalysisResult _buildMovementAnalysis(
     String patientId,
     Map<String, dynamic> visualDigest,
+    List<BackendVideoProcessingResult> backendResults,
   ) {
+    final latestBackendResult = backendResults.isNotEmpty ? backendResults.first : null;
+    if (latestBackendResult != null) {
+      return MovementAnalysisResult(
+        analysisId: latestBackendResult.movementAnalysis.analysisId,
+        patientId: patientId,
+        analyzedAt: latestBackendResult.movementAnalysis.analyzedAt,
+        movementRiskLevel:
+            latestBackendResult.movementAnalysis.movementRiskLevel,
+        locationSwitches: latestBackendResult.movementAnalysis.locationSwitches,
+        shortIntervalSwitches:
+            latestBackendResult.movementAnalysis.shortIntervalSwitches,
+        repeatedLoopCount:
+            latestBackendResult.movementAnalysis.repeatedLoopCount,
+        distinctVisitedLocations:
+            latestBackendResult.movementAnalysis.distinctVisitedLocations,
+        summary: latestBackendResult.movementAnalysis.summary,
+        evidenceNotes: latestBackendResult.movementAnalysis.evidenceNotes,
+        processingStatus: _statusFromBackend(latestBackendResult.status),
+      );
+    }
+
     return MovementAnalysisResult(
       analysisId: 'movement_${DateTime.now().millisecondsSinceEpoch}',
       patientId: patientId,
@@ -192,7 +254,24 @@ class AdvancedVisionContractService {
     String patientId,
     List<VideoObservationClipRequest> clipRequests,
     Map<String, dynamic> visualDigest,
+    List<BackendVideoProcessingResult> backendResults,
   ) {
+    if (backendResults.isNotEmpty) {
+      final latest = backendResults.first;
+      return FallAnalysisResult(
+        analysisId: latest.fallAnalysis.analysisId,
+        patientId: patientId,
+        clipId: latest.fallAnalysis.clipId,
+        analyzedAt: latest.fallAnalysis.analyzedAt,
+        riskLevel: latest.fallAnalysis.riskLevel,
+        confidence: latest.fallAnalysis.confidence,
+        modelSource: latest.fallAnalysis.modelSource,
+        summary: latest.fallAnalysis.summary,
+        evidenceNotes: latest.fallAnalysis.evidenceNotes,
+        processingStatus: _statusFromBackend(latest.status),
+      );
+    }
+
     if ((visualDigest['possibleFallCount'] as int? ?? 0) <= 0) {
       return null;
     }
@@ -225,6 +304,23 @@ class AdvancedVisionContractService {
       ],
       processingStatus: BackendProcessingStatus.pendingUpload,
     );
+  }
+
+  BackendProcessingStatus _statusFromBackend(String status) {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return BackendProcessingStatus.completed;
+      case 'failed':
+        return BackendProcessingStatus.failed;
+      case 'vertex_processing':
+        return BackendProcessingStatus.vertexFallModelProcessing;
+      case 'video_processing':
+        return BackendProcessingStatus.videoIntelligenceProcessing;
+      case 'queued':
+        return BackendProcessingStatus.queuedForVideoIntelligence;
+      default:
+        return BackendProcessingStatus.pendingUpload;
+    }
   }
 }
 

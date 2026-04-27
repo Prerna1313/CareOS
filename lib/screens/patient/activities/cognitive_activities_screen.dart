@@ -230,34 +230,34 @@ class _CognitiveActivitiesScreenState extends State<CognitiveActivitiesScreen> {
                 completedCount: completed,
               ),
               const SizedBox(height: 22),
+              Text(
+                'Choose an activity below',
+                style: textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final cardWidth = constraints.maxWidth > 520
-                      ? 188.0
-                      : constraints.maxWidth > 390
-                          ? 176.0
-                          : 162.0;
-                  return SizedBox(
-                    height: 164,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _categories.length,
-                      separatorBuilder: (_, unusedIndex) =>
-                          const SizedBox(width: 12),
-                      itemBuilder: (context, index) {
-                        final category = _categories[index];
-                        final isSelected = index == _selectedCategoryIndex;
-                        return _CategoryCard(
-                          width: cardWidth,
-                          category: category,
-                          isSelected: isSelected,
-                          scoreLabel:
-                              '${_scoreFor(category.type)} / ${category.prompts.length}',
-                          isCompleted: _isCategoryCompleted(category),
-                          onTap: () => _selectCategory(index),
-                        );
-                      },
-                    ),
+                  final cardWidth = constraints.maxWidth > 560
+                      ? (constraints.maxWidth - 12) / 2
+                      : constraints.maxWidth;
+                  return Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: List.generate(_categories.length, (index) {
+                      final category = _categories[index];
+                      final isSelected = index == _selectedCategoryIndex;
+                      return _CategoryCard(
+                        width: cardWidth,
+                        category: category,
+                        isSelected: isSelected,
+                        scoreLabel:
+                            '${_scoreFor(category.type)} / ${category.prompts.length}',
+                        isCompleted: _isCategoryCompleted(category),
+                        onTap: () => _selectCategory(index),
+                      );
+                    }),
                   );
                 },
               ),
