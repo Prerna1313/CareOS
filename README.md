@@ -36,3 +36,18 @@ The repo now includes a `backend/` Cloud Run service for the live Layer B pipeli
 - optional `Vertex AI` fall-model call when you provide a prediction URL
 
 See [backend/README.md](backend/README.md) for deploy steps.
+
+## Vertex fall-model activation
+
+The app/backend side is now ready for a custom Vertex fall model.
+
+To make it live:
+
+1. Deploy or expose a Vertex-compatible prediction endpoint for fall classification.
+2. Set `VERTEX_FALL_PREDICT_URL` on the Cloud Run backend.
+3. Redeploy `careos-backend`.
+
+After that, observation clips will use:
+
+- `Video Intelligence API` for movement/person signals
+- your custom `Vertex` endpoint for stronger fall-risk classification

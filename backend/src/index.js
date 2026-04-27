@@ -430,13 +430,14 @@ async function analyzePossibleFall({ gcsUri, patientId, clipId, triggerReason, l
     }
 
     const payload = await response.json();
-    const prediction = payload.predictions?.[0] || {};
+    const prediction = normalizeVertexPrediction(payload);
     return {
       analysisId: `fall_${Date.now()}`,
+      clipId,
       analyzedAt: new Date().toISOString(),
       riskLevel: prediction.riskLevel || heuristic.riskLevel,
       confidence: Number(prediction.confidence || heuristic.confidence || 0),
-      modelSource: 'vertex_custom_fall_model',
+      modelSource: prediction.modelSource || 'vertex_custom_fall_model',
       summary: prediction.summary || heuristic.summary,
       evidenceNotes: Array.isArray(prediction.evidenceNotes) && prediction.evidenceNotes.length
         ? prediction.evidenceNotes
@@ -444,8 +445,46 @@ async function analyzePossibleFall({ gcsUri, patientId, clipId, triggerReason, l
     };
   } catch (error) {
     console.error('Vertex fall model unavailable, using heuristic fallback', error);
-    return heuristic;
-  }
+  return heuristic;
+}
+
+function normalizeVertexPrediction(payload) {
+  const rawPrediction =
+    payload?.predictions?.[0] ||
+    payload?.prediction ||
+    payload?.result ||
+    payload ||
+    {};
+
+  return {
+    riskLevel:
+      rawPrediction.riskLevel ||
+      rawPrediction.risk_label ||
+      rawPrediction.label ||
+      rawPrediction.className ||
+      '',
+    confidence:
+      rawPrediction.confidence ??
+      rawPrediction.score ??
+      rawPrediction.probability ??
+      0,
+    summary:
+      rawPrediction.summary ||
+      rawPrediction.explanation ||
+      rawPrediction.description ||
+      '',
+    evidenceNotes:
+      rawPrediction.evidenceNotes ||
+      rawPrediction.evidence ||
+      rawPrediction.notes ||
+      [],
+    modelSource:
+      rawPrediction.modelSource ||
+      rawPrediction.model ||
+      rawPrediction.endpoint ||
+      'vertex_custom_fall_model',
+  };
+}
 }
 
 function buildHeuristicFallAnalysis({ clipId, labels, movement, triggerReason }) {
