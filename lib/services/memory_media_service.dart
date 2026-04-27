@@ -27,6 +27,9 @@ class MemoryMediaService {
   /// Saves the picked image to the app's document directory for persistence
   Future<String?> saveImageLocally(XFile file) async {
     try {
+      if (kIsWeb) {
+        return file.path;
+      }
       final directory = await getApplicationDocumentsDirectory();
       final fileName = '${DateTime.now().millisecondsSinceEpoch}${path.extension(file.path)}';
       final localPath = path.join(directory.path, 'memories', fileName);

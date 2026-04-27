@@ -42,6 +42,8 @@ class _PatientCompanionScreenState extends State<PatientCompanionScreen> {
   int _maxDraftLength = 0;
   int _draftRevisionCount = 0;
   String _lastDraftValue = '';
+  PatientSessionProvider? _sessionProvider;
+  InteractionSignalService? _interactionSignalService;
 
   @override
   void initState() {
@@ -55,11 +57,21 @@ class _PatientCompanionScreenState extends State<PatientCompanionScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sessionProvider ??= context.read<PatientSessionProvider>();
+    _interactionSignalService ??= context.read<InteractionSignalService>();
+  }
+
+  @override
   void dispose() {
-    final profile = context.read<PatientSessionProvider>().profile;
+    final profile = _sessionProvider?.profile;
     final draft = _textController.text.trim();
-    if (profile != null && draft.isNotEmpty) {
-      context.read<InteractionSignalService>().logSignal(
+    final interactionSignalService = _interactionSignalService;
+    if (profile != null &&
+        draft.isNotEmpty &&
+        interactionSignalService != null) {
+      interactionSignalService.logSignal(
         InteractionSignal(
           id: 'companion_abandoned_${DateTime.now().microsecondsSinceEpoch}',
           patientId: profile.patientId,
@@ -73,7 +85,7 @@ class _PatientCompanionScreenState extends State<PatientCompanionScreen> {
           },
         ),
       );
-      context.read<InteractionSignalService>().logSignal(
+      interactionSignalService.logSignal(
         InteractionSignal(
           id: 'companion_incomplete_${DateTime.now().microsecondsSinceEpoch}',
           patientId: profile.patientId,

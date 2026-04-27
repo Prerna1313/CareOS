@@ -238,7 +238,7 @@ class _CognitiveActivitiesScreenState extends State<CognitiveActivitiesScreen> {
                           ? 176.0
                           : 162.0;
                   return SizedBox(
-                    height: 148,
+                    height: 164,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       itemCount: _categories.length,

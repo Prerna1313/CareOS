@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:camera/camera.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
@@ -61,18 +62,22 @@ class CameraService {
     }
 
     final XFile file = await _controller!.takePicture();
-    
-    // Move to permanent local storage
-    final directory = await getApplicationDocumentsDirectory();
-    final fileName = '${_uuid.v4()}.jpg';
-    final savedPath = p.join(directory.path, 'captures', fileName);
-    
-    final capturesDir = Directory(p.join(directory.path, 'captures'));
-    if (!capturesDir.existsSync()) {
-      capturesDir.createSync(recursive: true);
-    }
 
-    await File(file.path).copy(savedPath);
+    late final String savedPath;
+    if (kIsWeb) {
+      savedPath = file.path;
+    } else {
+      final directory = await getApplicationDocumentsDirectory();
+      final fileName = '${_uuid.v4()}.jpg';
+      savedPath = p.join(directory.path, 'captures', fileName);
+
+      final capturesDir = Directory(p.join(directory.path, 'captures'));
+      if (!capturesDir.existsSync()) {
+        capturesDir.createSync(recursive: true);
+      }
+
+      await File(file.path).copy(savedPath);
+    }
     
     // Create event record
     final event = CameraEvent(

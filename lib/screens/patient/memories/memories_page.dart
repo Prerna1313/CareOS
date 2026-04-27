@@ -585,12 +585,52 @@ class _AddMemoryModalState extends State<_AddMemoryModal> {
   final _recorder = AudioRecorder();
   final List<String> _tags = [];
   final TextEditingController _tagController = TextEditingController();
+  bool _isPickingImage = false;
 
   @override
   void dispose() {
     _recorder.dispose();
     _tagController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickMemoryImage(ImageSource source) async {
+    setState(() => _isPickingImage = true);
+    try {
+      final provider = context.read<MemoryProvider>();
+      final file = await provider.pickImage(source);
+      if (!mounted) return;
+      if (file == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No photo was selected.')),
+        );
+        return;
+      }
+
+      final localPath = await provider.saveImageLocally(file);
+      if (!mounted) return;
+      if (localPath == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('The photo could not be prepared right now.'),
+          ),
+        );
+        return;
+      }
+
+      setState(() => _imagePath = localPath);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Photo selected: ${p.basename(localPath).isEmpty ? 'memory image' : p.basename(localPath)}',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingImage = false);
+      }
+    }
   }
 
   Future<void> _toggleRecording() async {
@@ -695,40 +735,20 @@ class _AddMemoryModalState extends State<_AddMemoryModal> {
                 Expanded(
                   child: _ImageActionButton(
                     icon: Icons.camera_alt_rounded,
-                    label: 'Camera',
-                    onTap: () async {
-                      final provider = context.read<MemoryProvider>();
-                      final file = await provider.pickImage(ImageSource.camera);
-                      if (!mounted) return;
-                      if (file != null) {
-                        final localPath = await provider.saveImageLocally(file);
-                        if (!mounted) return;
-                        if (localPath != null) {
-                          setState(() => _imagePath = localPath);
-                        }
-                      }
-                    },
+                    label: _isPickingImage ? 'Loading...' : 'Camera',
+                    onTap: _isPickingImage
+                        ? () {}
+                        : () => _pickMemoryImage(ImageSource.camera),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _ImageActionButton(
                     icon: Icons.photo_library_rounded,
-                    label: 'Gallery',
-                    onTap: () async {
-                      final provider = context.read<MemoryProvider>();
-                      final file = await provider.pickImage(
-                        ImageSource.gallery,
-                      );
-                      if (!mounted) return;
-                      if (file != null) {
-                        final localPath = await provider.saveImageLocally(file);
-                        if (!mounted) return;
-                        if (localPath != null) {
-                          setState(() => _imagePath = localPath);
-                        }
-                      }
-                    },
+                    label: _isPickingImage ? 'Loading...' : 'Gallery',
+                    onTap: _isPickingImage
+                        ? () {}
+                        : () => _pickMemoryImage(ImageSource.gallery),
                   ),
                 ),
               ],
@@ -737,56 +757,103 @@ class _AddMemoryModalState extends State<_AddMemoryModal> {
 
             // Image Preview (Redesigned)
             if (_imagePath != null)
-              Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
                     ),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: kIsWeb
-                            ? Image.network(_imagePath!, fit: BoxFit.cover)
-                            : (File(_imagePath!).existsSync()
-                                  ? Image.file(
-                                      File(_imagePath!),
-                                      fit: BoxFit.cover,
-                                    )
-                                  : Container(
-                                      color: AppColors.surfaceContainerHigh,
-                                    )),
-                      ),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(18),
                     ),
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: GestureDetector(
-                        onTap: () => setState(() => _imagePath = null),
-                        child: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close_rounded,
-                            color: AppColors.error,
-                            size: 18,
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          color: AppColors.secondary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Photo selected successfully',
+                                style: widget.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                p.basename(_imagePath!),
+                                style: widget.textTheme.bodySmall?.copyWith(
+                                  color: AppColors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    height: 200,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(24),
+                            child: kIsWeb
+                                ? Image.network(_imagePath!, fit: BoxFit.cover)
+                                : (File(_imagePath!).existsSync()
+                                      ? Image.file(
+                                          File(_imagePath!),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Container(
+                                          color: AppColors.surfaceContainerHigh,
+                                        )),
+                          ),
+                        ),
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _imagePath = null),
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: AppColors.error,
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             if (_imagePath != null) const SizedBox(height: 24),
             const SizedBox(height: 24),
