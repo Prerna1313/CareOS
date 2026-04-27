@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/patient_session_provider.dart';
+import '../../services/wearable_location_source_service.dart';
 import '../../theme/app_colors.dart';
 
 class PatientSettingsScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
   late final TextEditingController _importantItemsController;
   late bool _autoOrientationEnabled;
   late bool _voicePromptsEnabled;
+  late bool _liveLocationSharingEnabled;
   late double _textScaleFactor;
   late bool _highContrastEnabled;
   late bool _reducedMotionEnabled;
@@ -43,6 +45,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
     );
     _autoOrientationEnabled = profile?.autoOrientationEnabled ?? true;
     _voicePromptsEnabled = profile?.voicePromptsEnabled ?? true;
+    _liveLocationSharingEnabled = profile?.liveLocationSharingEnabled ?? false;
     _textScaleFactor = profile?.textScaleFactor ?? 1.0;
     _highContrastEnabled = profile?.highContrastEnabled ?? false;
     _reducedMotionEnabled = profile?.reducedMotionEnabled ?? false;
@@ -61,6 +64,8 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
   }
 
   Future<void> _save() async {
+    final sessionProvider = context.read<PatientSessionProvider>();
+    final locationSourceService = context.read<WearableLocationSourceService>();
     final importantItems = _importantItemsController.text
         .split(',')
         .map((item) => item.trim().toLowerCase())
@@ -68,7 +73,7 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
         .toSet()
         .toList();
 
-    await context.read<PatientSessionProvider>().updateProfileSettings(
+    await sessionProvider.updateProfileSettings(
       displayName: _nameController.text,
       homeLabel: _homeController.text,
       city: _cityController.text,
@@ -77,15 +82,31 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
       importantItems: importantItems,
       autoOrientationEnabled: _autoOrientationEnabled,
       voicePromptsEnabled: _voicePromptsEnabled,
+      liveLocationSharingEnabled: _liveLocationSharingEnabled,
       textScaleFactor: _textScaleFactor,
       highContrastEnabled: _highContrastEnabled,
       reducedMotionEnabled: _reducedMotionEnabled,
       simpleLayoutEnabled: _simpleLayoutEnabled,
     );
 
+    final profile = sessionProvider.profile;
+    String feedback = 'Patient settings saved locally.';
+    if (profile != null) {
+      if (_liveLocationSharingEnabled) {
+        final status = await locationSourceService.startTracking(
+          patientId: profile.patientId,
+          label: '${profile.homeLabel} live GPS',
+        );
+        feedback = status.message;
+      } else {
+        await locationSourceService.stopTracking();
+        feedback = 'Patient settings saved. Live GPS sharing is off.';
+      }
+    }
+
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Patient settings saved locally.')),
+      SnackBar(content: Text(feedback)),
     );
     Navigator.of(context).pop();
   }
@@ -153,6 +174,16 @@ class _PatientSettingsScreenState extends State<PatientSettingsScreen> {
             title: const Text('Voice prompts'),
             subtitle: const Text(
               'Allow calm spoken orientation and reassurance prompts.',
+            ),
+          ),
+          SwitchListTile(
+            value: _liveLocationSharingEnabled,
+            onChanged: (value) =>
+                setState(() => _liveLocationSharingEnabled = value),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Share live location'),
+            subtitle: const Text(
+              'Use this patient device as the live GPS source for caregiver safe-zone alerts.',
             ),
           ),
           const SizedBox(height: 8),

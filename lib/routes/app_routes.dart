@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../screens/landing/landing_screen.dart';
 import '../screens/caregiver/caregiver_login_screen.dart';
+import '../screens/caregiver/caregiver_shell.dart';
 import '../screens/caregiver/onboarding/caregiver_onboarding_flow.dart';
-import '../screens/caregiver/dashboard/caregiver_dashboard_screen.dart';
 import '../screens/patient/patient_access_screen.dart';
 import '../screens/patient/advanced_vision_report_screen.dart';
 import '../screens/patient/dashboard/patient_dashboard_screen.dart';
@@ -46,7 +46,7 @@ class AppRoutes {
     landing: (context) => const LandingScreen(),
     caregiverLogin: (context) => const CaregiverLoginScreen(),
     caregiverOnboarding: (context) => const CaregiverOnboardingFlow(),
-    caregiverDashboard: (context) => const CaregiverDashboardScreen(),
+    caregiverDashboard: (context) => const CaregiverShell(),
     patientAccess: (context) => const PatientAccessScreen(),
     patientDashboard: (context) => const PatientDashboardScreen(),
     patientAdvancedVisionReport: (context) =>

@@ -87,4 +87,14 @@ class AppColors {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
   );
+
+  // Compatibility aliases used by some caregiver/patient screens imported
+  // from earlier design iterations.
+  static const Color primaryColor = primary;
+  static const Color secondaryColor = secondary;
+  static const Color tertiaryColor = tertiary;
+  static const Color surfaceColor = surface;
+  static const Color textColor = onSurface;
+  static const Color errorColor = error;
+  static const Color successColor = success;
 }

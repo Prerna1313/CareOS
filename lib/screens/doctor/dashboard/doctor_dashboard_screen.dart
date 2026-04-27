@@ -1,15 +1,34 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../routes/app_routes.dart';
+import 'package:provider/provider.dart';
 
-/// Doctor Dashboard — Placeholder
-/// Minimal placeholder for navigation continuity.
-class DoctorDashboardScreen extends StatelessWidget {
+import '../../../models/caregiver_report.dart';
+import '../../../models/confusion_detection_result.dart';
+import '../../../repositories/report_repository.dart';
+import '../../../routes/app_routes.dart';
+import '../../../services/confusion_detection_result_service.dart';
+import '../../../services/patient_session_service.dart';
+import '../../../theme/app_colors.dart';
+
+class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({super.key});
 
   @override
+  State<DoctorDashboardScreen> createState() => _DoctorDashboardScreenState();
+}
+
+class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
+  final _reportRepository = ReportRepository();
+
+  @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    final activeProfile = context.read<PatientSessionService>().getActiveProfile();
+    final patientId = activeProfile?.patientId;
+    final patientName = activeProfile?.displayName ?? 'Active Patient';
+    final confusionAssessments = patientId == null
+        ? const <ConfusionDetectionResult>[]
+        : context
+            .read<ConfusionDetectionResultService>()
+            .getByPatientId(patientId);
 
     return Scaffold(
       appBar: AppBar(
@@ -19,7 +38,10 @@ class DoctorDashboardScreen extends StatelessWidget {
           IconButton(
             onPressed: () {
               Navigator.pushNamedAndRemoveUntil(
-                  context, AppRoutes.landing, (route) => false);
+                context,
+                AppRoutes.landing,
+                (route) => false,
+              );
             },
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Logout',
@@ -27,134 +49,225 @@ class DoctorDashboardScreen extends StatelessWidget {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Greeting
-                Text(
-                  'Welcome, Doctor.',
-                  style: textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.onSurface,
+        child: FutureBuilder<List<CaregiverReport>>(
+          future: patientId == null
+              ? Future.value(const <CaregiverReport>[])
+              : _reportRepository.getAll(patientId),
+          builder: (context, snapshot) {
+            final reports = (snapshot.data ?? const <CaregiverReport>[])
+                .where((report) => report.visibleToDoctor)
+                .toList();
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Doctor review for $patientName',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.onSurface,
+                        ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Review your patients\' clinical data below.',
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: AppColors.onSurfaceVariant,
+                  const SizedBox(height: 8),
+                  Text(
+                    'Caregiver reports, recent confusion assessments, and quick review cards are now shared here.',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                        ),
                   ),
-                ),
-                const SizedBox(height: 32),
-
-                // Patient list cards
-                _DoctorPatientCard(
-                  name: 'Patient #1',
-                  status: 'Stable — Last check 2 days ago',
-                  color: AppColors.primaryContainer,
-                ),
-                const SizedBox(height: 12),
-                _DoctorPatientCard(
-                  name: 'Patient #2',
-                  status: 'Review needed — Medication change',
-                  color: AppColors.errorContainer.withValues(alpha: 0.4),
-                ),
-                const SizedBox(height: 12),
-                _DoctorPatientCard(
-                  name: 'Patient #3',
-                  status: 'Stable — Cognitive test due',
-                  color: AppColors.secondaryContainer,
-                ),
-
-                const SizedBox(height: 48),
-
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    'Full doctor dashboard coming soon.',
-                    textAlign: TextAlign.center,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: AppColors.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+                  const SizedBox(height: 24),
+                  _buildSummaryRow(reports, confusionAssessments),
+                  const SizedBox(height: 24),
+                  _buildConfusionSection(confusionAssessments),
+                  const SizedBox(height: 24),
+                  _buildCaregiverReportsSection(reports),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
   }
+
+  Widget _buildSummaryRow(
+    List<CaregiverReport> reports,
+    List<ConfusionDetectionResult> confusionAssessments,
+  ) {
+    final latestRisk = confusionAssessments.isNotEmpty
+        ? confusionAssessments.first.riskLevel.name.toUpperCase()
+        : 'STABLE';
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _DoctorMetricCard(
+          title: 'Doctor-visible reports',
+          value: reports.length.toString(),
+          subtitle: 'Shared from caregiver flow',
+          color: AppColors.primaryContainer,
+        ),
+        _DoctorMetricCard(
+          title: 'Latest confusion risk',
+          value: latestRisk,
+          subtitle: confusionAssessments.isNotEmpty
+              ? '${confusionAssessments.first.score.round()} / 100'
+              : 'No AI assessment yet',
+          color: AppColors.secondaryContainer,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConfusionSection(List<ConfusionDetectionResult> confusionAssessments) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Recent confusion assessments',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        if (confusionAssessments.isEmpty)
+          _EmptyDoctorCard(
+            message: 'No confusion assessments have been shared yet.',
+          )
+        else
+          ...confusionAssessments.take(3).map(
+            (result) => Card(
+              elevation: 0,
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.grey[200]!),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Risk ${result.riskLevel.name.toUpperCase()} • ${result.score.round()}/100',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(result.explanation),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCaregiverReportsSection(List<CaregiverReport> reports) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Caregiver reports',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        if (reports.isEmpty)
+          _EmptyDoctorCard(
+            message: 'No caregiver reports have been marked visible to doctor yet.',
+          )
+        else
+          ...reports.take(6).map(
+            (report) => Card(
+              elevation: 0,
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: Colors.grey[200]!),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.all(16),
+                title: Text(
+                  report.category.displayName,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(report.note),
+                ),
+                trailing: Text(
+                  '${report.timestamp.day}/${report.timestamp.month}',
+                  style: const TextStyle(color: AppColors.onSurfaceVariant),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
-class _DoctorPatientCard extends StatelessWidget {
-  final String name;
-  final String status;
+class _DoctorMetricCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final String subtitle;
   final Color color;
 
-  const _DoctorPatientCard({
-    required this.name,
-    required this.status,
+  const _DoctorMetricCard({
+    required this.title,
+    required this.value,
+    required this.subtitle,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: 240,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: const TextStyle(color: AppColors.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
+class _EmptyDoctorCard extends StatelessWidget {
+  final String message;
+
+  const _EmptyDoctorCard({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.25),
+        color: AppColors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.person_rounded,
-                size: 22, color: AppColors.onSurface),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  status,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.arrow_forward_ios_rounded,
-              size: 14,
-              color: AppColors.onSurfaceVariant.withValues(alpha: 0.5)),
-        ],
+      child: Text(
+        message,
+        style: const TextStyle(color: AppColors.onSurfaceVariant),
       ),
     );
   }

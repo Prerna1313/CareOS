@@ -9,6 +9,7 @@ class PatientProfile {
   final List<String> importantItems;
   final bool autoOrientationEnabled;
   final bool voicePromptsEnabled;
+  final bool liveLocationSharingEnabled;
   final double textScaleFactor;
   final bool highContrastEnabled;
   final bool reducedMotionEnabled;
@@ -29,6 +30,7 @@ class PatientProfile {
     required this.importantItems,
     required this.autoOrientationEnabled,
     required this.voicePromptsEnabled,
+    required this.liveLocationSharingEnabled,
     required this.textScaleFactor,
     required this.highContrastEnabled,
     required this.reducedMotionEnabled,
@@ -58,6 +60,7 @@ class PatientProfile {
       importantItems: const ['glasses', 'diary', 'medicine'],
       autoOrientationEnabled: true,
       voicePromptsEnabled: true,
+      liveLocationSharingEnabled: false,
       textScaleFactor: 1.0,
       highContrastEnabled: false,
       reducedMotionEnabled: false,
@@ -81,6 +84,7 @@ class PatientProfile {
       'importantItems': importantItems,
       'autoOrientationEnabled': autoOrientationEnabled,
       'voicePromptsEnabled': voicePromptsEnabled,
+      'liveLocationSharingEnabled': liveLocationSharingEnabled,
       'textScaleFactor': textScaleFactor,
       'highContrastEnabled': highContrastEnabled,
       'reducedMotionEnabled': reducedMotionEnabled,
@@ -114,6 +118,8 @@ class PatientProfile {
       ),
       autoOrientationEnabled: map['autoOrientationEnabled'] as bool? ?? true,
       voicePromptsEnabled: map['voicePromptsEnabled'] as bool? ?? true,
+      liveLocationSharingEnabled:
+          map['liveLocationSharingEnabled'] as bool? ?? false,
       textScaleFactor: (map['textScaleFactor'] as num?)?.toDouble() ?? 1.0,
       highContrastEnabled: map['highContrastEnabled'] as bool? ?? false,
       reducedMotionEnabled: map['reducedMotionEnabled'] as bool? ?? false,
@@ -137,6 +143,7 @@ class PatientProfile {
     List<String>? importantItems,
     bool? autoOrientationEnabled,
     bool? voicePromptsEnabled,
+    bool? liveLocationSharingEnabled,
     double? textScaleFactor,
     bool? highContrastEnabled,
     bool? reducedMotionEnabled,
@@ -159,6 +166,8 @@ class PatientProfile {
       autoOrientationEnabled:
           autoOrientationEnabled ?? this.autoOrientationEnabled,
       voicePromptsEnabled: voicePromptsEnabled ?? this.voicePromptsEnabled,
+      liveLocationSharingEnabled:
+          liveLocationSharingEnabled ?? this.liveLocationSharingEnabled,
       textScaleFactor: textScaleFactor ?? this.textScaleFactor,
       highContrastEnabled: highContrastEnabled ?? this.highContrastEnabled,
       reducedMotionEnabled: reducedMotionEnabled ?? this.reducedMotionEnabled,

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../models/camera_event.dart';
 import '../../../models/confusion_state.dart';
 import '../../../models/interaction_signal.dart';
+import '../../../models/patient_location_ping.dart';
 import '../../../models/reminder.dart';
 import '../../../models/reminder_log.dart';
 import '../../../providers/memory_provider.dart';
@@ -15,8 +16,10 @@ import '../../../providers/reminder_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../services/camera_event_service.dart';
 import '../../../services/interaction_signal_service.dart';
+import '../../../services/patient_location_service.dart';
 import '../../../services/patient_records_service.dart';
 import '../../../services/voice_orientation_service.dart';
+import '../../../services/wearable_location_source_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/calming_popup.dart';
 import '../../../widgets/reminder_popup.dart';
@@ -37,6 +40,7 @@ class PatientDashboardScreen extends StatefulWidget {
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   int _currentIndex = 0;
   String? _lastAutoSupportSignature;
+  String? _lastLocationSharingSignature;
   DateTime? _lastTabChangeAt;
   String? _lastScreenName;
   bool _loggedInitialHomeVisit = false;
@@ -194,7 +198,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     final behaviorInsights = recordsService.buildBehaviorInsights();
     final routineDigest = recordsService.buildRoutineDigest(
       patientId: profile.patientId,
-      activeReminder: reminderProvider.currentReminder,
+      activeReminder: reminderProvider.displayReminder,
     );
     final routineNeedsSupport =
         routineDigest['shouldAutoSupport'] as bool? ?? false;
@@ -236,7 +240,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         final suggestion = recordsService.buildContextSupportSuggestion(
           profile: profile,
           confusionState: reminderState,
-          activeReminder: reminderProvider.currentReminder,
+          activeReminder: reminderProvider.displayReminder,
         );
         _showRoutineSupportPrompt(
           headline: suggestion['headline'] as String? ??
@@ -302,6 +306,30 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     }
   }
 
+  void _syncLiveLocationSharing() {
+    final profile = context.read<PatientSessionProvider>().profile;
+    if (profile == null) return;
+    final signature =
+        '${profile.patientId}-${profile.liveLocationSharingEnabled}-${profile.homeLabel}';
+    if (_lastLocationSharingSignature == signature) {
+      return;
+    }
+    _lastLocationSharingSignature = signature;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final locationSource = context.read<WearableLocationSourceService>();
+      if (profile.liveLocationSharingEnabled) {
+        await locationSource.startTracking(
+          patientId: profile.patientId,
+          label: '${profile.homeLabel} live GPS',
+        );
+      } else if (locationSource.activePatientId == profile.patientId) {
+        await locationSource.stopTracking();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final patientSession = context.watch<PatientSessionProvider>();
@@ -342,6 +370,7 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     }
 
     final profile = patientSession.profile!;
+    _syncLiveLocationSharing();
     if (!_loggedInitialHomeVisit) {
       _loggedInitialHomeVisit = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -580,7 +609,7 @@ class PatientHomeScreen extends StatelessWidget {
                     SizedBox(height: sectionGap),
                     const _WellbeingSection(),
                     SizedBox(height: sectionGap),
-                    const _PassiveSafetySection(),
+                    _PassiveSafetySection(),
                   ],
                   SizedBox(height: sectionGap),
                   _LightEngagementSection(
@@ -892,7 +921,7 @@ class _SmartSupportCard extends StatelessWidget {
         : recordsService.buildContextSupportSuggestion(
             profile: profile,
             confusionState: reminderProvider.currentConfusionState,
-            activeReminder: reminderProvider.currentReminder,
+            activeReminder: reminderProvider.displayReminder,
           );
     final headline = suggestion['headline'] as String? ?? 'You are safe and supported';
     final supportLine = suggestion['guidance'] as String? ??
@@ -1357,11 +1386,12 @@ class _DailySupportSection extends StatelessWidget {
     final reminderProvider = context.watch<ReminderProvider>();
     final profile = context.watch<PatientSessionProvider>().profile;
     final current = reminderProvider.currentReminder;
+    final displayReminder = reminderProvider.displayReminder;
     final routineDigest = profile == null
         ? null
         : context.watch<PatientRecordsService>().buildRoutineDigest(
             patientId: profile.patientId,
-            activeReminder: current,
+            activeReminder: displayReminder,
           );
     final recentLogs = List<ReminderLog>.from(
       routineDigest?['recentLogs'] ?? const <ReminderLog>[],
@@ -1387,12 +1417,12 @@ class _DailySupportSection extends StatelessWidget {
                 ),
               ),
               TextButton(
-                onPressed: current == null
-                    ? () => reminderProvider.triggerMockReminder()
+                onPressed: displayReminder == null
+                    ? () => reminderProvider.refreshReminders()
                     : () =>
                         Navigator.pushNamed(context, '/patient/event_history'),
                 child: Text(
-                  current == null ? 'Show Reminder' : 'View Activity',
+                  displayReminder == null ? 'Refresh Reminders' : 'View Activity',
                   style: textTheme.labelLarge?.copyWith(
                     color: AppColors.primary,
                     fontWeight: FontWeight.bold,
@@ -1411,6 +1441,8 @@ class _DailySupportSection extends StatelessWidget {
             border: Border.all(
               color: current != null
                   ? _colorForType(current.type).withValues(alpha: 0.22)
+                  : displayReminder != null
+                      ? _colorForType(displayReminder.type).withValues(alpha: 0.22)
                   : AppColors.outlineVariant.withValues(alpha: 0.18),
             ),
           ),
@@ -1424,18 +1456,24 @@ class _DailySupportSection extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: (current != null
                               ? _colorForType(current.type)
+                              : displayReminder != null
+                                  ? _colorForType(displayReminder.type)
                               : AppColors.primary)
                           .withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: Icon(
-                      current != null
-                          ? _iconForType(current.type)
-                          : Icons.schedule_rounded,
-                      color: current != null
-                          ? _colorForType(current.type)
-                          : AppColors.primary,
-                    ),
+                      child: Icon(
+                        current != null
+                            ? _iconForType(current.type)
+                            : displayReminder != null
+                                ? _iconForType(displayReminder.type)
+                            : Icons.schedule_rounded,
+                        color: current != null
+                            ? _colorForType(current.type)
+                            : displayReminder != null
+                                ? _colorForType(displayReminder.type)
+                            : AppColors.primary,
+                      ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1476,6 +1514,24 @@ class _DailySupportSection extends StatelessWidget {
                       reminderProvider.handleResponse(ReminderAction.remindLater),
                   onNeedHelp: () => reminderProvider.triggerMockConfusion(),
                 ),
+              ] else if (displayReminder != null) ...[
+                _RoutineFocusCard(
+                  title: displayReminder.title,
+                  description: displayReminder.description,
+                  timeLabel:
+                      'Scheduled for ${DateFormat('h:mm a').format(displayReminder.scheduledTime)}',
+                  accent: _colorForType(displayReminder.type),
+                  primaryLabel: 'Refresh now',
+                  secondaryLabel: 'Open My Day',
+                  tertiaryLabel: 'Need support',
+                  onDone: () => reminderProvider.refreshReminders(),
+                  onLater: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const MyDayMainPage(),
+                    ),
+                  ),
+                  onNeedHelp: () => reminderProvider.triggerMockConfusion(),
+                ),
               ] else ...[
                 _RoutineFocusCard(
                   title: 'No active reminder right now',
@@ -1483,10 +1539,10 @@ class _DailySupportSection extends StatelessWidget {
                       'Your next medicine, water, or daily task will appear here when it is time.',
                   timeLabel: 'Routine ready',
                   accent: AppColors.primary,
-                  primaryLabel: 'Show practice reminder',
+                  primaryLabel: 'Refresh reminders',
                   secondaryLabel: 'Open My Day',
                   tertiaryLabel: 'Need support',
-                  onDone: reminderProvider.triggerMockReminder,
+                  onDone: () => reminderProvider.refreshReminders(),
                   onLater: () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const MyDayMainPage(),
@@ -2244,7 +2300,7 @@ class _DailySummarySnapshotCard extends StatelessWidget {
     final digest = context.watch<PatientRecordsService>().buildDailyDigest(
       patientId: profile.patientId,
       confusionState: reminderProvider.currentConfusionState,
-      activeReminder: reminderProvider.currentReminder,
+      activeReminder: reminderProvider.displayReminder,
     );
     final observationDigest = context
         .watch<PatientRecordsService>()
@@ -2526,7 +2582,9 @@ class _RecentItemSightingChip extends StatelessWidget {
 }
 
 class _PassiveSafetySection extends StatelessWidget {
-  const _PassiveSafetySection();
+  _PassiveSafetySection();
+
+  final PatientLocationService _locationService = PatientLocationService();
 
   @override
   Widget build(BuildContext context) {
@@ -2535,6 +2593,11 @@ class _PassiveSafetySection extends StatelessWidget {
         .watch<CameraEventService>()
         .getAllEvents()
         .length;
+    final profile = context.watch<PatientSessionProvider>().profile;
+    final patientId = profile?.patientId;
+    final gpsStatusFuture = context
+        .read<WearableLocationSourceService>()
+        .getStatus();
 
     return Container(
       width: double.infinity,
@@ -2570,17 +2633,35 @@ class _PassiveSafetySection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          const _SupportLine(
-            icon: Icons.watch_rounded,
-            text:
-                'Wearable connection placeholder ready for smartwatch integration.',
+          FutureBuilder<WearableLocationSourceStatus>(
+            future: gpsStatusFuture,
+            builder: (context, snapshot) {
+              final status = snapshot.data;
+              final line = profile?.liveLocationSharingEnabled == true
+                  ? (status?.message ??
+                      'Connecting patient device GPS for caregiver monitoring.')
+                  : 'Live location sharing is off. Turn it on in Patient Settings to send real GPS updates.';
+              return _SupportLine(
+                icon: Icons.watch_rounded,
+                text: line,
+              );
+            },
           ),
           const SizedBox(height: 10),
-          const _SupportLine(
-            icon: Icons.location_on_rounded,
-            text:
-                'Background GPS and safe-zone monitoring can be connected here.',
-          ),
+          if (patientId != null)
+            FutureBuilder<PatientLocationPing?>(
+              future: _locationService.getLatest(patientId),
+              builder: (context, snapshot) {
+                final latestPing = snapshot.data;
+                final text = latestPing == null
+                    ? 'No live GPS ping has been captured yet.'
+                    : 'Latest GPS ping: ${latestPing.latitude.toStringAsFixed(5)}, ${latestPing.longitude.toStringAsFixed(5)} via ${latestPing.source}.';
+                return _SupportLine(
+                  icon: Icons.location_on_rounded,
+                  text: text,
+                );
+              },
+            ),
           const SizedBox(height: 10),
           _SupportLine(
             icon: Icons.visibility_rounded,

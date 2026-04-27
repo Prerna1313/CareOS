@@ -8,6 +8,7 @@ import '../models/interaction_signal.dart';
 import 'camera_event_service.dart';
 import 'backend_speech_result_service.dart';
 import 'backend_video_result_service.dart';
+import 'confusion_detection_result_service.dart';
 import 'confusion_event_service.dart';
 import 'daily_checkin_service.dart';
 import 'event_log_service.dart';
@@ -21,6 +22,7 @@ class PatientRecordsService {
   final PatientContractMapperService _mapper;
   final EventLogService _eventLogService;
   final ConfusionEventService _confusionEventService;
+  final ConfusionDetectionResultService _confusionDetectionResultService;
   final CameraEventService _cameraEventService;
   final MemoryService _memoryService;
   final DailyCheckinService _dailyCheckinService;
@@ -34,6 +36,7 @@ class PatientRecordsService {
     required PatientContractMapperService mapper,
     required EventLogService eventLogService,
     required ConfusionEventService confusionEventService,
+    required ConfusionDetectionResultService confusionDetectionResultService,
     required CameraEventService cameraEventService,
     required MemoryService memoryService,
     required DailyCheckinService dailyCheckinService,
@@ -45,6 +48,7 @@ class PatientRecordsService {
   }) : _mapper = mapper,
        _eventLogService = eventLogService,
        _confusionEventService = confusionEventService,
+       _confusionDetectionResultService = confusionDetectionResultService,
        _cameraEventService = cameraEventService,
        _memoryService = memoryService,
        _dailyCheckinService = dailyCheckinService,
@@ -76,6 +80,9 @@ class PatientRecordsService {
         .getAllEvents()
         .where((event) => event.patientId == patientId)
         .map(_mapper.fromConfusionEvent);
+    final confusionAssessments = _confusionDetectionResultService
+        .getByPatientId(patientId)
+        .map(_mapper.fromConfusionAssessment);
     final observationEvents = _cameraEventService.getAllEvents().map(
       (event) => _mapper.fromCameraEvent(event, patientId),
     );
@@ -89,6 +96,7 @@ class PatientRecordsService {
     final combined = [
       ...reminderEvents,
       ...confusionEvents,
+      ...confusionAssessments,
       ...observationEvents,
       ...backendVideoEvents,
       ...backendSpeechEvents,
@@ -428,6 +436,7 @@ class PatientRecordsService {
       'completedReminders': completedReminders,
       'ignoredReminders': ignoredReminders,
       'confusionMoments': confusionEvents,
+      'confusionAssessments': _confusionDetectionResultService.getByPatientId(patientId).length,
       'capturedObservations': observations.length,
       'backendVideoAnalyses': _backendVideoResultService.getByPatientId(patientId).length,
       'backendSpeechAnalyses': _backendSpeechResultService.getByPatientId(patientId).length,
@@ -1251,6 +1260,8 @@ class PatientRecordsService {
     switch (event.type) {
       case 'confusion':
         return 'Confusion detected';
+      case 'confusion_ai':
+        return 'AI confusion assessment';
       case 'observation':
         return 'Observation captured';
       case 'reminder':

@@ -4,9 +4,12 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'theme/app_theme.dart';
 import 'routes/app_routes.dart';
 import 'services/reminder_service.dart';
+import 'services/caregiver_reminder_service.dart';
 import 'services/event_log_service.dart';
 import 'services/confusion_detection_service.dart';
+import 'services/confusion_ai_assessment_service.dart';
 import 'services/confusion_event_service.dart';
+import 'services/confusion_detection_result_service.dart';
 import 'services/daily_checkin_service.dart';
 import 'services/daily_report_service.dart';
 import 'services/daily_summary_service.dart';
@@ -38,6 +41,7 @@ import 'services/advanced_speech_contract_service.dart';
 import 'services/backend_processing_service.dart';
 import 'services/backend_speech_result_service.dart';
 import 'services/backend_video_result_service.dart';
+import 'services/wearable_location_source_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
@@ -48,6 +52,8 @@ void main() async {
 
   final eventLogService = EventLogService();
   final confusionEventService = ConfusionEventService();
+  final confusionDetectionResultService = ConfusionDetectionResultService();
+  final caregiverReminderService = CaregiverReminderService();
   final dailyCheckinService = DailyCheckinService();
   final memoryService = MemoryService();
   final memoryMediaService = MemoryMediaService();
@@ -67,11 +73,14 @@ void main() async {
   late VisionService visionService;
   late DailySummaryService dailySummaryService;
   late CloudVisionService cloudVisionService;
+  ConfusionAiAssessmentService? confusionAiAssessmentService;
 
   // Initialize local services and Firebase (wrapped to prevent blank screen)
   try {
     await eventLogService.init();
     await confusionEventService.init();
+    await confusionDetectionResultService.init();
+    await caregiverReminderService.init();
     await dailyCheckinService.init();
     await memoryService.init();
     await recognitionResponseService.init();
@@ -87,6 +96,7 @@ void main() async {
     );
 
     final cloudAiService = CloudAIService();
+    confusionAiAssessmentService = ConfusionAiAssessmentService();
     cloudVisionService = CloudVisionService();
     recognitionService = RecognitionService(
       recognitionResponseService,
@@ -118,6 +128,7 @@ void main() async {
     CareOSApp(
       eventLogService: eventLogService,
       confusionEventService: confusionEventService,
+      confusionDetectionResultService: confusionDetectionResultService,
       dailyCheckinService: dailyCheckinService,
       memoryService: memoryService,
       memoryMediaService: memoryMediaService,
@@ -137,6 +148,8 @@ void main() async {
       backendProcessingService: backendProcessingService,
       backendSpeechResultService: backendSpeechResultService,
       backendVideoResultService: backendVideoResultService,
+      confusionAiAssessmentService: confusionAiAssessmentService,
+      caregiverReminderService: caregiverReminderService,
     ),
   );
 }
@@ -146,6 +159,7 @@ void main() async {
 class CareOSApp extends StatelessWidget {
   final EventLogService eventLogService;
   final ConfusionEventService confusionEventService;
+  final ConfusionDetectionResultService confusionDetectionResultService;
   final DailyCheckinService dailyCheckinService;
   final MemoryService memoryService;
   final MemoryMediaService memoryMediaService;
@@ -165,11 +179,14 @@ class CareOSApp extends StatelessWidget {
   final BackendProcessingService backendProcessingService;
   final BackendSpeechResultService backendSpeechResultService;
   final BackendVideoResultService backendVideoResultService;
+  final ConfusionAiAssessmentService? confusionAiAssessmentService;
+  final CaregiverReminderService caregiverReminderService;
 
   const CareOSApp({
     super.key,
     required this.eventLogService,
     required this.confusionEventService,
+    required this.confusionDetectionResultService,
     required this.dailyCheckinService,
     required this.memoryService,
     required this.memoryMediaService,
@@ -189,6 +206,8 @@ class CareOSApp extends StatelessWidget {
     required this.backendProcessingService,
     required this.backendSpeechResultService,
     required this.backendVideoResultService,
+    required this.confusionAiAssessmentService,
+    required this.caregiverReminderService,
   });
 
   @override
@@ -199,6 +218,7 @@ class CareOSApp extends StatelessWidget {
       mapper: patientContractMapperService,
       eventLogService: eventLogService,
       confusionEventService: confusionEventService,
+      confusionDetectionResultService: confusionDetectionResultService,
       cameraEventService: cameraEventService,
       memoryService: memoryService,
       dailyCheckinService: dailyCheckinService,
@@ -218,6 +238,7 @@ class CareOSApp extends StatelessWidget {
       patientRecordsService,
       backendSpeechResultService,
     );
+    final wearableLocationSourceService = WearableLocationSourceService();
 
     return MultiProvider(
       providers: [
@@ -239,6 +260,9 @@ class CareOSApp extends StatelessWidget {
         Provider<BackendVideoResultService>.value(
           value: backendVideoResultService,
         ),
+        Provider<WearableLocationSourceService>.value(
+          value: wearableLocationSourceService,
+        ),
         Provider<PatientRecordsService>.value(value: patientRecordsService),
         Provider<AdvancedVisionContractService>.value(
           value: advancedVisionContractService,
@@ -251,6 +275,12 @@ class CareOSApp extends StatelessWidget {
           value: confusionDetectionService,
         ),
         Provider<ConfusionEventService>.value(value: confusionEventService),
+        Provider<ConfusionDetectionResultService>.value(
+          value: confusionDetectionResultService,
+        ),
+        Provider<ConfusionAiAssessmentService?>.value(
+          value: confusionAiAssessmentService,
+        ),
         Provider<DailyCheckinService>.value(value: dailyCheckinService),
         Provider<FirestoreDailyCheckinService>.value(
           value: firestoreDailyCheckinService,
@@ -287,18 +317,28 @@ class CareOSApp extends StatelessWidget {
         ),
         ChangeNotifierProxyProvider<PatientSessionProvider, ReminderProvider>(
           create: (context) => ReminderProvider(
-            MockReminderService(),
+            SharedCaregiverReminderService(caregiverReminderService),
             eventLogService,
             confusionDetectionService,
             confusionEventService,
             context.read<PatientSessionProvider>().patientId,
+            patientName:
+                context.read<PatientSessionProvider>().profile?.displayName ??
+                'Patient',
+            confusionAiAssessmentService: confusionAiAssessmentService,
+            confusionDetectionResultService: confusionDetectionResultService,
+            firestoreEventService: firestoreEventService,
           ),
           update: (context, patientSession, previous) => ReminderProvider(
-            MockReminderService(),
+            SharedCaregiverReminderService(caregiverReminderService),
             eventLogService,
             confusionDetectionService,
             confusionEventService,
             patientSession.patientId,
+            patientName: patientSession.profile?.displayName ?? 'Patient',
+            confusionAiAssessmentService: confusionAiAssessmentService,
+            confusionDetectionResultService: confusionDetectionResultService,
+            firestoreEventService: firestoreEventService,
           ),
         ),
         ChangeNotifierProvider(

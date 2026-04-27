@@ -25,5 +25,6 @@ gcloud storage cp "${PACKAGE_PATH}" "${PACKAGE_URI}"
 gcloud ai custom-jobs create \
   --region="${REGION}" \
   --display-name="${JOB_NAME}" \
-  --worker-pool-spec="machine-type=${MACHINE_TYPE},replica-count=1,accelerator-type=${ACCELERATOR_TYPE},accelerator-count=${ACCELERATOR_COUNT},executor-image-uri=${EXECUTOR_IMAGE_URI},python-package-uris=${PACKAGE_URI},python-module=fall_model.vertex_job" \
+  --python-package-uris="${PACKAGE_URI}" \
+  --worker-pool-spec="machine-type=${MACHINE_TYPE},replica-count=1,accelerator-type=${ACCELERATOR_TYPE},accelerator-count=${ACCELERATOR_COUNT},executor-image-uri=${EXECUTOR_IMAGE_URI},python-module=fall_model.vertex_job" \
   --args="--gcs-prefix=${GCS_PREFIX},--output-dir=${OUTPUT_DIR},--epochs=8,--batch-size=4"

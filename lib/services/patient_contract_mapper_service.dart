@@ -1,6 +1,7 @@
 import 'package:uuid/uuid.dart';
 
 import '../models/camera_event.dart';
+import '../models/confusion_detection_result.dart';
 import '../models/confusion_event.dart';
 import '../models/confusion_state.dart';
 import '../models/memory_item.dart';
@@ -72,6 +73,29 @@ class PatientContractMapperService {
       summary: event.triggerReason,
       source: 'confusion_detection',
       evidenceRefs: [event.recentEventsSnapshot],
+    );
+  }
+
+  PatientCareEvent fromConfusionAssessment(ConfusionDetectionResult result) {
+    final severity = switch (result.riskLevel) {
+      ConfusionRiskLevel.high => 'high',
+      ConfusionRiskLevel.moderate => 'medium',
+      ConfusionRiskLevel.mild => 'low',
+      ConfusionRiskLevel.stable => 'info',
+    };
+
+    return PatientCareEvent(
+      eventId: 'confusion_ai_${result.timestamp.toIso8601String()}',
+      patientId: result.patientId,
+      type: 'confusion_ai',
+      timestamp: result.timestamp,
+      severity: severity,
+      summary: result.explanation,
+      source: result.source,
+      evidenceRefs: [
+        ...result.detectedSignals,
+        if (result.memoryCueNeeded) 'memory_cue_needed',
+      ],
     );
   }
 

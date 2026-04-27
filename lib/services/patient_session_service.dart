@@ -18,6 +18,14 @@ class PatientSessionService {
     return PatientProfile.fromMap(Map<dynamic, dynamic>.from(data));
   }
 
+  PatientProfile? getProfileById(String patientId) {
+    final profile = getActiveProfile();
+    if (profile == null || profile.patientId != patientId) {
+      return null;
+    }
+    return profile;
+  }
+
   Future<void> saveProfile(PatientProfile profile) async {
     await _box.put(_profileKey, profile.toMap());
   }

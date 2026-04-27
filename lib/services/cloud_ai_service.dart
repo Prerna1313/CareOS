@@ -6,15 +6,15 @@ import '../models/my_day/daily_checkin_entry.dart';
 import '../models/memory_item.dart';
 
 class CloudAIService {
-  // Use Gemini 1.5 Flash for speed and cost-efficiency
-  // Use Gemini 1.5 Pro for complex reasoning if needed
+  // Use Gemini 2.5 Flash for the app's fast multimodal tasks.
+  // Deeper confusion assessment now uses a dedicated Gemini 2.5 Pro service.
   late GenerativeModel _textModel;
   late GenerativeModel _visionModel;
 
   CloudAIService() {
     final ai = FirebaseAI.vertexAI();
-    _textModel = ai.generativeModel(model: 'gemini-1.5-flash');
-    _visionModel = ai.generativeModel(model: 'gemini-1.5-flash');
+    _textModel = ai.generativeModel(model: 'gemini-2.5-flash');
+    _visionModel = ai.generativeModel(model: 'gemini-2.5-flash');
   }
 
   /// Generates an empathetic summary of the patient's daily check-in

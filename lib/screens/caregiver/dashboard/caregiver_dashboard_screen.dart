@@ -1,540 +1,602 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
+import 'package:provider/provider.dart';
+import '../../../models/alert.dart';
+import '../../../models/caregiver_session.dart';
+import '../../../models/confusion_detection_result.dart';
+import '../../../models/safe_zone.dart';
+import '../../../models/medication_reminder.dart';
+import '../../../models/patient.dart';
+import '../../../models/daily_summary.dart';
+import '../../../repositories/patient_monitoring_repository.dart';
+import '../../../repositories/reminder_repository.dart';
+import '../../../repositories/safe_zone_repository.dart';
 import '../../../routes/app_routes.dart';
+import '../../../services/backend_speech_result_service.dart';
+import '../../../services/backend_video_result_service.dart';
+import '../../../services/caregiver_alert_feed_service.dart';
+import '../../../services/confusion_detection_result_service.dart';
+import '../../../services/patient_location_service.dart';
+import '../../../services/patient_records_service.dart';
+import '../../../services/voice_orientation_service.dart';
+import '../alerts/alerts_screen.dart';
+import '../memory/memory_cue_management_screen.dart';
+import '../team/care_team_screen.dart';
+import '../../../theme/app_colors.dart';
+import '../../../widgets/caregiver/confusion_gauge.dart';
+import '../../../widgets/caregiver/metric_card.dart';
+import '../../../widgets/caregiver/section_header.dart';
+import '../../../widgets/caregiver/status_chip.dart';
 
-/// Caregiver Dashboard — Full Implementation
-class CaregiverDashboardScreen extends StatelessWidget {
+class CaregiverDashboardScreen extends StatefulWidget {
   const CaregiverDashboardScreen({super.key});
 
   @override
+  State<CaregiverDashboardScreen> createState() => _CaregiverDashboardScreenState();
+}
+
+class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
+  final _repository = PatientMonitoringRepository();
+  final _reminderRepository = ReminderRepository();
+  final _safeZoneRepository = SafeZoneRepository();
+  final _locationService = PatientLocationService();
+  final _alertFeedService = CaregiverAlertFeedService();
+  Patient? _patient;
+  DailySummary? _summary;
+
+  @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    // Extract arguments if passed from onboarding/login
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
-        {};
-
-    // Fallback dummy data if no arguments provided
-    final String caregiverName =
-        args['caregiverName']?.toString().isNotEmpty == true
-        ? args['caregiverName']
-        : 'Caregiver';
-    final String patientName =
-        args['patientName']?.toString().isNotEmpty == true
-        ? args['patientName']
-        : 'Alex Johnson';
-    final String condition = args['condition']?.toString().isNotEmpty == true
-        ? args['condition']
-        : 'Memory Care Patient';
-    final String homeLocation = args['location']?.toString().isNotEmpty == true
-        ? args['location']
-        : 'Home 1';
-    final String patientId = args['patientId']?.toString().isNotEmpty == true
-        ? args['patientId']
-        : 'PT-8429';
-
+    final session = CaregiverSessionScope.of(context);
+    final confusionAssessment = context
+        .read<ConfusionDetectionResultService>()
+        .getLatestForPatient(session.patientId);
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: Text(
-          'Hi, $caregiverName',
-          style: textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: AppColors.onSurface,
-          ),
-        ),
-        backgroundColor: AppColors.surface.withValues(alpha: 0.8),
-        scrolledUnderElevation: 0,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRoutes.landing,
-                (route) => false,
-              );
-            },
-            icon: const Icon(
-              Icons.logout_rounded,
-              color: AppColors.onSurfaceVariant,
-            ),
-            tooltip: 'Logout',
-          ),
-        ],
-      ),
+      backgroundColor: AppColors.surfaceColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header / Patient Summary
-              _PatientHeaderCard(
-                patientName: patientName,
-                condition: condition,
-                location: homeLocation,
-                textTheme: textTheme,
-              ),
-              const SizedBox(height: 16),
-
-              // Patient Login ID Card
-              _PatientLoginIdCard(patientId: patientId),
-              const SizedBox(height: 24),
-
-              // Metrics Row
-              _MetricsRow(textTheme: textTheme),
-              const SizedBox(height: 32),
-
-              // Active Alerts
-              Text(
-                'Active Alerts',
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onSurface,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const _AlertCard(
-                title: 'Left Safe Zone',
-                description: 'Location: Backyard Perimeter',
-                icon: Icons.directions_walk_rounded,
-              ),
-              const SizedBox(height: 12),
-              const _AlertCard(
-                title: 'Missed Medication',
-                description: 'Donepezil 10mg (Evening dose)',
-                icon: Icons.medication_rounded,
-              ),
-              const SizedBox(height: 32),
-
-              // Daily Insights
-              Text(
-                'Daily Insights',
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onSurface,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const _InsightCard(
-                value: '2',
-                label: 'Confusion Count',
-                subtitle: 'Moderate',
-                subLabel: 'Activity Level',
-              ),
-              const SizedBox(height: 12),
-              const _InsightCard(
-                value: 'Medication',
-                label: 'Status',
-                subtitle: 'Next: 9:00 PM',
-                subLabel: '',
-              ),
-              const SizedBox(height: 32),
-
-              // Quick Actions
-              Text(
-                'Quick Actions',
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onSurface,
-                ),
-              ),
-              const SizedBox(height: 16),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.2,
-                children: const [
-                  _QuickActionButton(
-                    title: 'Status',
-                    icon: Icons.analytics_outlined,
-                    isPrimary: true,
-                  ),
-                  _QuickActionButton(
-                    title: 'Alerts',
-                    icon: Icons.notifications_active_outlined,
-                    isPrimary: false,
-                  ),
-                  _QuickActionButton(
-                    title: 'History',
-                    icon: Icons.event_note_outlined,
-                    isPrimary: false,
-                  ),
-                  _QuickActionButton(
-                    title: 'Profile',
-                    icon: Icons.person_outline_rounded,
-                    isPrimary: false,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
-            ],
+        child: StreamBuilder<Patient?>(
+          stream: _repository.getPatientStatusStream(
+            session.patientId,
+            fallbackName: session.patientName,
+            fallbackCondition: session.condition,
+            fallbackLocation: session.location,
           ),
+          builder: (context, patientSnapshot) {
+            return StreamBuilder<DailySummary?>(
+              stream: _repository.getDailySummaryStream(
+                session.patientId,
+                fallbackPatientName: session.patientName,
+              ),
+              builder: (context, summarySnapshot) {
+                if (patientSnapshot.connectionState == ConnectionState.waiting ||
+                    summarySnapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: AppColors.primaryColor));
+                }
+
+                _patient = patientSnapshot.data;
+                _summary = summarySnapshot.data;
+
+                if (_patient == null || _summary == null) {
+                  return const Center(child: Text("Waiting for patient data...", style: TextStyle(color: Colors.grey)));
+                }
+
+                return FutureBuilder<List<MedicationReminder>>(
+                  future: _reminderRepository.getAll(session.patientId),
+                  builder: (context, reminderSnapshot) {
+                    final reminders =
+                        reminderSnapshot.data ?? const <MedicationReminder>[];
+                    final safeZonesFuture = _safeZoneRepository.getAll(
+                      session.patientId,
+                    );
+                    return FutureBuilder<List<SafeZone>>(
+                      future: safeZonesFuture,
+                      builder: (context, safeZoneSnapshot) {
+                        final safeZones =
+                            safeZoneSnapshot.data ?? const <SafeZone>[];
+                        return FutureBuilder(
+                          future: _locationService.getLatest(session.patientId),
+                          builder: (context, locationSnapshot) {
+                            final alerts = _alertFeedService.buildActiveAlerts(
+                              patientId: session.patientId,
+                              storedAlerts: const <Alert>[],
+                              patient: _patient,
+                              confusionAssessment: confusionAssessment,
+                              reminders: reminders,
+                              safeZones: safeZones,
+                              latestLocationPing: locationSnapshot.data,
+                              latestVideo: context
+                                  .read<BackendVideoResultService>()
+                                  .getLatestForPatient(session.patientId),
+                              latestSpeech: context
+                                  .read<BackendSpeechResultService>()
+                                  .getLatestForPatient(session.patientId),
+                            );
+                            return _buildDashboardContent(
+                              context,
+                              confusionAssessment,
+                              reminders,
+                              alerts,
+                            );
+                          },
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
         ),
       ),
     );
   }
-}
 
-class _PatientHeaderCard extends StatelessWidget {
-  final String patientName;
-  final String condition;
-  final String location;
-  final TextTheme textTheme;
+  Widget _buildDashboardContent(
+    BuildContext context,
+    ConfusionDetectionResult? confusionAssessment,
+    List<MedicationReminder> reminders,
+    List<Alert> alerts,
+  ) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        // Streams automatically refresh, but we keep this for manual sync requests if needed
+      },
+      color: AppColors.primaryColor,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 24),
+            _buildRiskGauge(confusionAssessment),
+            const SizedBox(height: 24),
+            _buildMetricsGrid(reminders),
+            const SizedBox(height: 24),
+            _buildAlertHighlights(alerts),
+            const SizedBox(height: 24),
+            _buildReminderOverview(reminders),
+            const SizedBox(height: 24),
+            _buildQuickActions(context),
+          ],
+        ),
+      ),
+    );
+  }
 
-  const _PatientHeaderCard({
-    required this.patientName,
-    required this.condition,
-    required this.location,
-    required this.textTheme,
-  });
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: AppColors.primaryColor.withValues(alpha: 0.1),
+          child: const Icon(Icons.person, size: 30, color: AppColors.primaryColor),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _patient!.name,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textColor,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  StatusChip(
+                    label: _patient!.currentStatus.toUpperCase(),
+                    icon: Icons.circle,
+                    isPositive: _patient!.currentStatus == 'active',
+                    isNeutral: false,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_patient!.age} yrs • ${_patient!.condition}',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          onPressed: () {
+            final session = CaregiverSessionScope.of(context);
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => CaregiverSessionScope(
+                  session: session,
+                  child: const CareTeamScreen(),
+                ),
+              ),
+            );
+          },
+          icon: const Icon(Icons.settings_outlined),
+          color: AppColors.textColor,
+        )
+      ],
+    );
+  }
+
+  Widget _buildRiskGauge(ConfusionDetectionResult? confusionAssessment) {
+    final gaugeScore = confusionAssessment?.score ?? _summary!.confusionFrequency * 100;
+    final subtitle = confusionAssessment?.explanation ??
+        'Score based on recent activity, text, and routines.';
+    final riskLabel = confusionAssessment?.riskLevel.name.toUpperCase() ?? 'ROUTINE';
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Confusion Risk',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  riskLabel,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    color: AppColors.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ConfusionGauge(score: gaugeScore, size: 100),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricsGrid(List<MedicationReminder> reminders) {
+    final nextReminder = _nextReminder(reminders);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Today\'s Summary'),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.5,
+          children: [
+            MetricCard(
+              title: 'Medication',
+              value: '${(_summary!.medicineAdherence * 100).toInt()}%',
+              subtitle: nextReminder != null
+                  ? 'Next ${nextReminder.time}'
+                  : 'No upcoming reminder',
+              icon: Icons.medication_outlined,
+            ),
+            MetricCard(
+              title: 'Activity',
+              value: _summary!.activityLevel,
+              subtitle: '${_summary!.stepsToday} steps',
+              icon: Icons.directions_walk,
+              color: AppColors.secondaryColor,
+            ),
+            MetricCard(
+              title: 'Engagement',
+              value: '${_summary!.memoryCueEngagement} cues',
+              subtitle: 'Interactions today',
+              icon: Icons.touch_app_outlined,
+              color: Colors.orange,
+            ),
+            MetricCard(
+              title: 'Active Alerts',
+              value: _summary!.alertCount.toString(),
+              icon: Icons.notifications_active_outlined,
+              color: AppColors.errorColor,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAlertHighlights(List<Alert> alerts) {
+    final topAlerts = alerts.take(3).toList();
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            patientName,
-            style: textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppColors.onSurface,
+          const Text(
+            'Alert Highlights',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          if (topAlerts.isEmpty)
+            Text(
+              'No high-priority caregiver alerts right now.',
+              style: TextStyle(color: Colors.grey[700]),
+            )
+          else
+            ...topAlerts.map(
+              (alert) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.notification_important_outlined,
+                      size: 18,
+                      color: alert.severity == AlertSeverity.high
+                          ? AppColors.errorColor
+                          : Colors.orange,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            alert.title,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            alert.message,
+                            style: TextStyle(color: Colors.grey[700], height: 1.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Text(
-                condition,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  '•',
-                  style: TextStyle(color: AppColors.outlineVariant),
-                ),
-              ),
-              Text(
-                location,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
-}
 
-class _MetricsRow extends StatelessWidget {
-  final TextTheme textTheme;
-  const _MetricsRow({required this.textTheme});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
+  Widget _buildQuickActions(BuildContext context) {
+    final session = CaregiverSessionScope.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: _MetricItem(
-            value: '72',
-            unit: 'bpm',
-            label: 'Heart Rate',
-            color: AppColors.secondaryContainer,
-            textColor: AppColors.onSecondaryContainer,
-            textTheme: textTheme,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _MetricItem(
-            value: '1,402',
-            unit: '',
-            label: 'Steps Today',
-            color: AppColors.primaryContainer,
-            textColor: AppColors.onPrimaryContainer,
-            textTheme: textTheme,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _MetricItem(
-            value: 'Good',
-            unit: '',
-            label: 'Sleep Quality',
-            color: AppColors.tertiaryContainer,
-            textColor: AppColors.onTertiaryContainer,
-            textTheme: textTheme,
+        const SectionHeader(title: 'Quick Actions'),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _ActionBtn(
+                icon: Icons.record_voice_over,
+                label: 'Voice Cue',
+                color: AppColors.primaryColor,
+                onTap: () => _sendVoiceCue(context, session),
+              ),
+              _ActionBtn(
+                icon: Icons.support_agent,
+                label: 'Orientation',
+                color: AppColors.secondaryColor,
+                onTap: () => _triggerOrientationSupport(context, session),
+              ),
+              _ActionBtn(
+                icon: Icons.add_photo_alternate,
+                label: 'Add Memory',
+                color: AppColors.tertiaryColor,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CaregiverSessionScope(
+                        session: session,
+                        child: const MemoryCueManagementScreen(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              _ActionBtn(
+                icon: Icons.notifications_active,
+                label: 'Alerts',
+                color: AppColors.errorColor,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => CaregiverSessionScope(
+                        session: session,
+                        child: const AlertsScreen(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
         ),
       ],
     );
   }
-}
 
-class _MetricItem extends StatelessWidget {
-  final String value;
-  final String unit;
-  final String label;
-  final Color color;
-  final Color textColor;
-  final TextTheme textTheme;
-
-  const _MetricItem({
-    required this.value,
-    required this.unit,
-    required this.label,
-    required this.color,
-    required this.textColor,
-    required this.textTheme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                value,
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                ),
-              ),
-              if (unit.isNotEmpty) ...[
-                const SizedBox(width: 2),
-                Text(
-                  unit,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: textColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: textTheme.bodySmall?.copyWith(
-              color: AppColors.onSurfaceVariant,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AlertCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final IconData icon;
-
-  const _AlertCard({
-    required this.title,
-    required this.description,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.errorContainer.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.errorContainer.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppColors.onErrorContainer, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onErrorContainer,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: textTheme.bodySmall?.copyWith(
-                    color: AppColors.onErrorContainer.withValues(alpha: 0.8),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InsightCard extends StatelessWidget {
-  final String value;
-  final String label;
-  final String subtitle;
-  final String subLabel;
-
-  const _InsightCard({
-    required this.value,
-    required this.label,
-    required this.subtitle,
-    required this.subLabel,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
+  Widget _buildReminderOverview(List<MedicationReminder> reminders) {
+    final nextReminder = _nextReminder(reminders);
+    final missedCount = reminders
+        .where((item) => item.responseStatus == ReminderResponseStatus.missed)
+        .length;
+    final snoozedCount = reminders
+        .where((item) => item.responseStatus == ReminderResponseStatus.snoozed)
+        .length;
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const Text(
+            'Reminder Overview',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            nextReminder != null
+                ? 'Next reminder: ${nextReminder.title} at ${nextReminder.time}'
+                : 'No caregiver reminders scheduled yet.',
+            style: TextStyle(color: Colors.grey[700], height: 1.35),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              Text(
-                value,
-                style: textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.onSurface,
-                ),
+              _ReminderStatusChip(
+                label: '${reminders.length} total',
+                color: AppColors.primaryColor,
               ),
-              const SizedBox(height: 2),
+              _ReminderStatusChip(
+                label: '$missedCount missed',
+                color: AppColors.errorColor,
+              ),
+              _ReminderStatusChip(
+                label: '$snoozedCount snoozed',
+                color: Colors.orange,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  MedicationReminder? _nextReminder(List<MedicationReminder> reminders) {
+    if (reminders.isEmpty) return null;
+    return reminders.firstWhere(
+      (item) => item.isEnabled,
+      orElse: () => reminders.first,
+    );
+  }
+
+  Future<void> _sendVoiceCue(
+    BuildContext context,
+    CaregiverSession session,
+  ) async {
+    final recordsService = context.read<PatientRecordsService>();
+    final now = DateTime.now();
+    final phrase = VoiceOrientationService().getOrientationPhrase(
+      name: session.patientName,
+      timeOfDay: now.hour < 12 ? 'morning' : now.hour < 17 ? 'afternoon' : 'evening',
+      location: session.location,
+      dateStr: '${now.day}/${now.month}/${now.year}',
+    );
+    await recordsService.logIntervention(
+      patientId: session.patientId,
+      triggerType: 'caregiver_quick_action',
+      interventionType: 'voice_cue',
+      outcome: 'requested',
+      notes: phrase,
+    );
+    await VoiceOrientationService().speak(phrase);
+    if (mounted) {
+      ScaffoldMessenger.of(this.context).showSnackBar(
+        SnackBar(content: Text('Voice cue sent to ${session.patientName}.')),
+      );
+    }
+  }
+
+  Future<void> _triggerOrientationSupport(
+    BuildContext context,
+    CaregiverSession session,
+  ) async {
+    final recordsService = context.read<PatientRecordsService>();
+    await recordsService.logIntervention(
+      patientId: session.patientId,
+      triggerType: 'caregiver_quick_action',
+      interventionType: 'orientation_prompt',
+      outcome: 'requested',
+      notes: 'Caregiver triggered orientation support remotely.',
+    );
+    if (!mounted) return;
+    Navigator.pushNamed(this.context, AppRoutes.patientOrientationSupport);
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionBtn({required this.icon, required this.label, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12.0),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 90,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 8),
               Text(
                 label,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                subtitle,
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primary,
-                ),
-              ),
-              if (subLabel.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subLabel,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickActionButton extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final bool isPrimary;
-
-  const _QuickActionButton({
-    required this.title,
-    required this.icon,
-    required this.isPrimary,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-            gradient: isPrimary ? AppColors.primaryGradient : null,
-            color: isPrimary ? null : AppColors.surfaceContainerLowest,
-            border: isPrimary
-                ? null
-                : Border.all(
-                    color: AppColors.outlineVariant.withValues(alpha: 0.15),
-                    width: 1,
-                  ),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 32,
-                color: isPrimary ? AppColors.onPrimary : AppColors.primary,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: isPrimary ? AppColors.onPrimary : AppColors.onSurface,
-                ),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
               ),
             ],
           ),
@@ -544,70 +606,27 @@ class _QuickActionButton extends StatelessWidget {
   }
 }
 
-class _PatientLoginIdCard extends StatelessWidget {
-  final String patientId;
+class _ReminderStatusChip extends StatelessWidget {
+  final String label;
+  final Color color;
 
-  const _PatientLoginIdCard({required this.patientId});
+  const _ReminderStatusChip({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.primaryContainer.withValues(alpha: 0.2),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.2),
-          width: 1,
-        ),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.badge_outlined,
-              color: AppColors.primary,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Patient Login ID',
-                  style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Use this ID on the patient device',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Text(
-            patientId,
-            style: textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
       ),
     );
   }

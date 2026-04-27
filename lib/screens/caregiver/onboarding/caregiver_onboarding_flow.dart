@@ -25,6 +25,8 @@ class _CaregiverOnboardingFlowState extends State<CaregiverOnboardingFlow> {
   final TextEditingController _patientNameController = TextEditingController();
   final TextEditingController _conditionController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _emergencyPhoneController =
+      TextEditingController();
 
   @override
   void dispose() {
@@ -33,6 +35,7 @@ class _CaregiverOnboardingFlowState extends State<CaregiverOnboardingFlow> {
     _patientNameController.dispose();
     _conditionController.dispose();
     _locationController.dispose();
+    _emergencyPhoneController.dispose();
     super.dispose();
   }
 
@@ -50,11 +53,14 @@ class _CaregiverOnboardingFlowState extends State<CaregiverOnboardingFlow> {
         context,
         AppRoutes.caregiverDashboard,
         arguments: {
+          'caregiverId':
+              'cg_${_caregiverNameController.text.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_')}',
           'caregiverName': _caregiverNameController.text,
           'patientName': _patientNameController.text,
           'condition': _conditionController.text,
           'location': _locationController.text,
           'patientId': generatedId,
+          'emergencyPhone': _emergencyPhoneController.text.trim(),
         },
       );
     }
@@ -138,6 +144,7 @@ class _CaregiverOnboardingFlowState extends State<CaregiverOnboardingFlow> {
                   _SafetySyncStep(
                     textTheme: textTheme,
                     locationController: _locationController,
+                    emergencyPhoneController: _emergencyPhoneController,
                   ),
                 ],
               ),
@@ -421,10 +428,12 @@ class _PatientSetupStep extends StatelessWidget {
 class _SafetySyncStep extends StatelessWidget {
   final TextTheme textTheme;
   final TextEditingController locationController;
+  final TextEditingController emergencyPhoneController;
 
   const _SafetySyncStep({
     required this.textTheme,
     required this.locationController,
+    required this.emergencyPhoneController,
   });
 
   @override
@@ -454,10 +463,11 @@ class _SafetySyncStep extends StatelessWidget {
           const SizedBox(height: 32),
 
           // Form Fields
-          const CustomTextField(
+          CustomTextField(
             label: 'Emergency Phone Number',
+            controller: emergencyPhoneController,
             keyboardType: TextInputType.phone,
-            prefixIcon: Icon(Icons.emergency_outlined, size: 20),
+            prefixIcon: const Icon(Icons.emergency_outlined, size: 20),
           ),
           const SizedBox(height: 16),
           CustomTextField(
