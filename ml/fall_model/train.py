@@ -6,11 +6,11 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+import cv2
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 import torch.nn.functional as F
-from torchvision.io import read_video
 from torchvision.models.video import R3D_18_Weights, r3d_18
 
 
@@ -72,7 +72,7 @@ class FallVideoDataset(Dataset):
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         row = self.rows[index]
-        video, _, _ = read_video(row.local_path, pts_unit="sec")
+        video = self._load_video_tensor(row.local_path)
         if video.numel() == 0:
             raise ValueError(f"Video at {row.local_path} could not be decoded.")
 
@@ -99,6 +99,27 @@ class FallVideoDataset(Dataset):
 
         label = torch.tensor(self.label_to_index[row.label], dtype=torch.long)
         return sampled, label
+
+    def _load_video_tensor(self, path: str) -> torch.Tensor:
+        capture = cv2.VideoCapture(path)
+        if not capture.isOpened():
+            raise ValueError(f"Video at {path} could not be opened.")
+
+        frames: list[torch.Tensor] = []
+        try:
+            while True:
+                success, frame = capture.read()
+                if not success:
+                    break
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frames.append(torch.from_numpy(frame))
+        finally:
+            capture.release()
+
+        if not frames:
+            return torch.empty(0)
+
+        return torch.stack(frames, dim=0)
 
 
 def evaluate(

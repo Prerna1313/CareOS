@@ -9,6 +9,7 @@ setup(
     packages=find_packages(where="."),
     install_requires=[
         "google-cloud-storage>=2.16.0",
+        "opencv-python-headless>=4.10.0",
         "pandas>=2.2.2",
         "torch>=2.2.0",
         "torchvision>=0.17.0",
