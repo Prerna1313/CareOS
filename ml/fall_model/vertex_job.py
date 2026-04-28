@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from google.cloud import storage
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -34,9 +36,29 @@ def run_command(command: list[str]) -> None:
     subprocess.run(command, check=True)
 
 
+def upload_directory_to_gcs(local_dir: Path, gcs_uri: str) -> None:
+    if not gcs_uri.startswith("gs://"):
+        return
+
+    trimmed = gcs_uri[5:]
+    bucket_name, _, prefix = trimmed.partition("/")
+    prefix = prefix.rstrip("/")
+
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+
+    for path in local_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(local_dir).as_posix()
+        blob_name = f"{prefix}/{relative}" if prefix else relative
+        print(f"Uploading {path} -> gs://{bucket_name}/{blob_name}")
+        bucket.blob(blob_name).upload_from_filename(str(path))
+
+
 def main() -> None:
     args = parse_args()
-    repo_root = Path(__file__).resolve().parents[2]
+    package_root = Path(__file__).resolve().parent
     work_dir = Path(args.work_dir)
     manifest_dir = work_dir / "manifests"
     manifest_dir.mkdir(parents=True, exist_ok=True)
@@ -44,10 +66,12 @@ def main() -> None:
     manifest_path = manifest_dir / "fall_manifest.csv"
     staged_manifest_path = manifest_dir / "fall_manifest_staged.csv"
     data_root = work_dir / "staged_videos"
+    artifact_dir = work_dir / "artifacts"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
 
-    build_manifest_script = repo_root / "ml" / "fall_model" / "build_manifest.py"
-    stage_dataset_script = repo_root / "ml" / "fall_model" / "stage_dataset.py"
-    train_script = repo_root / "ml" / "fall_model" / "train.py"
+    build_manifest_script = package_root / "build_manifest.py"
+    stage_dataset_script = package_root / "stage_dataset.py"
+    train_script = package_root / "train.py"
 
     run_command(
         [
@@ -81,7 +105,7 @@ def main() -> None:
             "--manifest",
             str(staged_manifest_path),
             "--output-dir",
-            args.output_dir,
+            str(artifact_dir),
             "--epochs",
             str(args.epochs),
             "--batch-size",
@@ -92,6 +116,15 @@ def main() -> None:
             str(args.image_size),
         ]
     )
+
+    if args.output_dir.startswith("gs://"):
+        upload_directory_to_gcs(artifact_dir, args.output_dir)
+    else:
+        output_dir = Path(args.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        for artifact in artifact_dir.iterdir():
+            target = output_dir / artifact.name
+            artifact.replace(target)
 
 
 if __name__ == "__main__":
