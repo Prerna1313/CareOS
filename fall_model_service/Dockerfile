@@ -12,11 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY fall_model_service/requirements.txt ./requirements.txt
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY fall_model_service/app.py /app/app.py
-COPY fall_model_service/inference.py /app/inference.py
+COPY app.py /app/app.py
+COPY inference.py /app/inference.py
 
 EXPOSE 8080
 
