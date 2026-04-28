@@ -14,7 +14,7 @@ Cloud Run backend for the advanced CareOS Layer B pipeline.
   - Store it in your Firebase-backed Cloud Storage bucket
   - Run `Cloud Video Intelligence API`
   - Return movement analysis plus fall-risk output
-  - If `VERTEX_FALL_PREDICT_URL` is set, call a custom Vertex fall model
+  - If `VERTEX_FALL_PREDICT_URL` is set, call the custom CareOS fall model service
   - Otherwise fall back to video heuristics
 
 ## Required environment variables
@@ -22,9 +22,9 @@ Cloud Run backend for the advanced CareOS Layer B pipeline.
 - `GOOGLE_CLOUD_PROJECT=careos-sanctuary-7b2a9`
 - `CAREOS_STORAGE_BUCKET=careos-sanctuary-7b2a9.firebasestorage.app`
 - `CAREOS_SPEECH_LANGUAGE=en-US`
-- `VERTEX_FALL_PREDICT_URL=...` (optional for now)
+- `VERTEX_FALL_PREDICT_URL=...` (optional for now, points to the fall-model service `/predict` route)
 
-## Vertex fall model contract
+## Fall model prediction contract
 
 When `VERTEX_FALL_PREDICT_URL` is set, the backend sends a POST request with:
 
@@ -70,7 +70,7 @@ Example response:
         "Detected low-height posture over several frames.",
         "Movement slowed sharply after the posture change."
       ],
-      "modelSource": "vertex_custom_fall_model"
+      "modelSource": "careos_vertex_fall_model_t4"
     }
   ]
 }
@@ -93,5 +93,5 @@ gcloud run deploy careos-backend `
   --source backend `
   --region us-central1 `
   --service-account careos-backend-859@careos-sanctuary-7b2a9.iam.gserviceaccount.com `
-  --set-env-vars GOOGLE_CLOUD_PROJECT=careos-sanctuary-7b2a9,CAREOS_STORAGE_BUCKET=careos-sanctuary-7b2a9.firebasestorage.app,VERTEX_FALL_PREDICT_URL=https://your-vertex-endpoint
+  --set-env-vars GOOGLE_CLOUD_PROJECT=careos-sanctuary-7b2a9,CAREOS_STORAGE_BUCKET=careos-sanctuary-7b2a9.firebasestorage.app,VERTEX_FALL_PREDICT_URL=https://your-fall-model-service/predict
 ```

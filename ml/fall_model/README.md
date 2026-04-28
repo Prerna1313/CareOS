@@ -36,7 +36,7 @@ This workspace maps:
 2. Stage the selected videos locally in a Vertex training job.
 3. Train a custom video classifier with PyTorch.
 4. Export weights and label map.
-5. Deploy the model behind a Vertex-compatible prediction route.
+5. Deploy the model behind a prediction route.
 6. Set `VERTEX_FALL_PREDICT_URL` on `careos-backend`.
 
 ## Files
@@ -145,12 +145,26 @@ The trainer writes:
 ## Deployment note
 
 This workspace currently trains and exports the model artifact.
-You still need either:
+You still need a serving layer that loads the exported artifacts and exposes a
+prediction route. This repo now includes a lightweight Cloud Run service in
+`fall_model_service/` for that purpose.
 
-1. a Vertex custom prediction routine / custom container, or
-2. a thin serving wrapper that loads `best_model.pt`
+Recommended deploy flow:
 
-to expose a prediction route that returns fields such as:
+```bash
+cd ~/CareOS
+chmod +x fall_model_service/deploy_cloud_run.sh
+ARTIFACTS_URI=gs://careos-sanctuary-7b2a9.firebasestorage.app/vertex-fall-model-artifacts/careos-fall-train-20260428-113000 \
+./fall_model_service/deploy_cloud_run.sh
+```
+
+Then point the backend env var at:
+
+```text
+https://<cloud-run-url>/predict
+```
+
+The service returns fields such as:
 
 - `riskLevel`
 - `confidence`

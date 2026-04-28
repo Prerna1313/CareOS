@@ -445,7 +445,8 @@ async function analyzePossibleFall({ gcsUri, patientId, clipId, triggerReason, l
     };
   } catch (error) {
     console.error('Vertex fall model unavailable, using heuristic fallback', error);
-  return heuristic;
+    return heuristic;
+  }
 }
 
 function normalizeVertexPrediction(payload) {
@@ -484,7 +485,6 @@ function normalizeVertexPrediction(payload) {
       rawPrediction.endpoint ||
       'vertex_custom_fall_model',
   };
-}
 }
 
 function buildHeuristicFallAnalysis({ clipId, labels, movement, triggerReason }) {

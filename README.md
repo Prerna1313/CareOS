@@ -43,11 +43,11 @@ The app/backend side is now ready for a custom Vertex fall model.
 
 To make it live:
 
-1. Deploy or expose a Vertex-compatible prediction endpoint for fall classification.
+1. Deploy the Python fall-model service from `fall_model_service/`.
 2. Set `VERTEX_FALL_PREDICT_URL` on the Cloud Run backend.
 3. Redeploy `careos-backend`.
 
 After that, observation clips will use:
 
 - `Video Intelligence API` for movement/person signals
-- your custom `Vertex` endpoint for stronger fall-risk classification
+- your custom trained fall-model service for stronger fall-risk classification
