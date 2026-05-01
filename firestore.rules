@@ -2,12 +2,78 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function appUserPath() {
+      return /databases/$(database)/documents/app_users/$(request.auth.uid);
+    }
+
     function isSignedIn() {
       return request.auth != null;
     }
 
+    function userDoc() {
+      return get(appUserPath());
+    }
+
+    function hasProfile() {
+      return isSignedIn() && exists(appUserPath());
+    }
+
+    function userRole() {
+      return hasProfile() ? userDoc().data.role : null;
+    }
+
+    function linkedToPatient(patientId) {
+      return hasProfile() &&
+        patientId in userDoc().data.linkedPatientIds;
+    }
+
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function canAccessPatient(patientId) {
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/patient_registry/$(patientId)).data.caregiverUid == request.auth.uid ||
+        request.auth.uid in get(/databases/$(database)/documents/patient_registry/$(patientId)).data.doctorUids ||
+        linkedToPatient(patientId)
+      );
+    }
+
+    match /app_users/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    match /patient_access_codes/{code} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /doctor_invites/{code} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /patient_registry/{patientId} {
+      allow read: if canAccessPatient(patientId);
+      allow create: if isSignedIn() &&
+        request.resource.data.caregiverUid == request.auth.uid;
+      allow update: if isSignedIn() && (
+        resource.data.caregiverUid == request.auth.uid ||
+        request.auth.uid in resource.data.doctorUids ||
+        (userRole() == 'doctor' && linkedToPatient(patientId))
+      );
+
+      match /caregiver_reports/{documentId} {
+        allow read: if canAccessPatient(patientId);
+        allow write: if isSignedIn() &&
+          get(/databases/$(database)/documents/patient_registry/$(patientId)).data.caregiverUid == request.auth.uid;
+      }
+
+      match /doctor_notes/{documentId} {
+        allow read: if canAccessPatient(patientId);
+        allow write: if isSignedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/patient_registry/$(patientId)).data.doctorUids;
+      }
     }
 
     match /users/{userId} {

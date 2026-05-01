@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:uuid/uuid.dart';
 import '../../../models/caregiver_session.dart';
+import '../../../models/memory_item.dart';
 import '../../../models/memory_cue.dart';
 import '../../../models/my_day/daily_checkin_entry.dart';
 import '../../../repositories/memory_cue_repository.dart';
 import '../../../services/caregiver_voice_note_service.dart';
 import '../../../services/daily_checkin_service.dart';
+import '../../../services/memory_service.dart';
 import '../../../services/patient_records_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/caregiver/empty_state.dart';
@@ -23,6 +25,7 @@ class _MemoryCueManagementScreenState extends State<MemoryCueManagementScreen> {
   final _repository = MemoryCueRepository();
   final _uuid = const Uuid();
   final _voiceNoteService = CaregiverVoiceNoteService();
+  final _memoryService = MemoryService();
   final _audioPlayer = AudioPlayer();
   CaregiverSession? _session;
   bool _isLoading = true;
@@ -212,6 +215,12 @@ class _MemoryCueManagementScreenState extends State<MemoryCueManagementScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      tooltip: 'Delete cue',
+                      onPressed: () => _deleteCue(cue),
+                      icon: const Icon(Icons.delete_outline_rounded),
+                    ),
                   ],
                 )
               ],
@@ -308,7 +317,9 @@ class _MemoryCueManagementScreenState extends State<MemoryCueManagementScreen> {
 
   Future<void> _pushCueToPatient(MemoryCue cue) async {
     final session = _session ?? CaregiverSession.fallback();
-    await context.read<PatientRecordsService>().logIntervention(
+    final recordsService = context.read<PatientRecordsService>();
+    await _syncCueToPatientMemory(cue);
+    await recordsService.logIntervention(
       patientId: session.patientId,
       triggerType: 'caregiver_memory_cue',
       interventionType: 'memory_cue_push',
@@ -320,6 +331,18 @@ class _MemoryCueManagementScreenState extends State<MemoryCueManagementScreen> {
       SnackBar(
         content: Text('Memory cue "${cue.title}" prepared for ${session.patientName}.'),
       ),
+    );
+  }
+
+  Future<void> _deleteCue(MemoryCue cue) async {
+    await _repository.delete(cue.id);
+    if (cue.id.startsWith('memory_')) {
+      await _memoryService.deleteMemory(cue.id.replaceFirst('memory_', ''));
+    }
+    await _loadCues();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Removed memory cue "${cue.title}".')),
     );
   }
 
@@ -545,6 +568,7 @@ class _MemoryCueManagementScreenState extends State<MemoryCueManagementScreen> {
                         } else {
                           await _repository.update(cue);
                         }
+                        await _syncCueToPatientMemory(cue);
                         if (mounted) {
                           Navigator.of(this.context).pop(true);
                         }
@@ -579,5 +603,37 @@ class _MemoryCueManagementScreenState extends State<MemoryCueManagementScreen> {
   Future<void> _playVoiceNote(String path) async {
     await _audioPlayer.stop();
     await _audioPlayer.play(DeviceFileSource(path));
+  }
+
+  Future<void> _syncCueToPatientMemory(MemoryCue cue) async {
+    final memoryId = cue.id.startsWith('memory_')
+        ? cue.id.replaceFirst('memory_', '')
+        : 'cue_${cue.id}';
+    final existingMemory = _memoryService.getMemoryById(memoryId);
+    final memory = MemoryItem(
+      id: memoryId,
+      patientId: cue.patientId,
+      type: switch (cue.type) {
+        MemoryCueType.family => MemoryType.person,
+        MemoryCueType.place => MemoryType.place,
+        _ => MemoryType.event,
+      },
+      name: cue.title,
+      note: cue.caption,
+      localImagePath: cue.mediaUrl,
+      remoteImageUrl: cue.mediaUrl,
+      uploadStatus: cue.mediaUrl != null
+          ? UploadStatus.uploaded
+          : UploadStatus.localOnly,
+      createdAt: existingMemory?.createdAt ?? DateTime.now(),
+      voiceNotePath: cue.voiceNotePath,
+      tags: cue.tags,
+      summary: cue.caption,
+    );
+    if (existingMemory == null) {
+      await _memoryService.addMemory(memory);
+    } else {
+      await _memoryService.updateMemory(memory);
+    }
   }
 }

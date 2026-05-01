@@ -2,6 +2,7 @@ class PatientProfile {
   final String patientId;
   final String accessCode;
   final String displayName;
+  final int age;
   final String homeLabel;
   final String city;
   final String caregiverName;
@@ -23,6 +24,7 @@ class PatientProfile {
     required this.patientId,
     required this.accessCode,
     required this.displayName,
+    required this.age,
     required this.homeLabel,
     required this.city,
     required this.caregiverName,
@@ -45,6 +47,7 @@ class PatientProfile {
     required String patientId,
     required String accessCode,
     String? displayName,
+    int age = 78,
   }) {
     final now = DateTime.now();
     return PatientProfile(
@@ -53,6 +56,7 @@ class PatientProfile {
       displayName: displayName?.trim().isNotEmpty == true
           ? displayName!.trim()
           : 'Friend',
+      age: age,
       homeLabel: 'Home',
       city: 'your city',
       caregiverName: 'Rahul',
@@ -77,6 +81,7 @@ class PatientProfile {
       'patientId': patientId,
       'accessCode': accessCode,
       'displayName': displayName,
+      'age': age,
       'homeLabel': homeLabel,
       'city': city,
       'caregiverName': caregiverName,
@@ -109,6 +114,7 @@ class PatientProfile {
       patientId: map['patientId']?.toString() ?? '',
       accessCode: map['accessCode']?.toString() ?? '',
       displayName: map['displayName']?.toString() ?? 'Friend',
+      age: (map['age'] as num?)?.toInt() ?? 78,
       homeLabel: map['homeLabel']?.toString() ?? 'Home',
       city: map['city']?.toString() ?? 'your city',
       caregiverName: map['caregiverName']?.toString() ?? 'Rahul',
@@ -136,6 +142,7 @@ class PatientProfile {
     String? patientId,
     String? accessCode,
     String? displayName,
+    int? age,
     String? homeLabel,
     String? city,
     String? caregiverName,
@@ -157,6 +164,7 @@ class PatientProfile {
       patientId: patientId ?? this.patientId,
       accessCode: accessCode ?? this.accessCode,
       displayName: displayName ?? this.displayName,
+      age: age ?? this.age,
       homeLabel: homeLabel ?? this.homeLabel,
       city: city ?? this.city,
       caregiverName: caregiverName ?? this.caregiverName,

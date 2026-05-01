@@ -29,6 +29,20 @@ class PatientSessionProvider extends ChangeNotifier {
     final normalizedCode = enteredCode.trim();
     if (normalizedCode.isEmpty) return false;
 
+    final linkedProfile = _service.getProfileForAccessCode(normalizedCode);
+    if (linkedProfile != null) {
+      final updatedProfile = linkedProfile.copyWith(
+        displayName: preferredName?.trim().isNotEmpty == true
+            ? preferredName!.trim()
+            : linkedProfile.displayName,
+        lastActiveAt: DateTime.now(),
+      );
+      _profile = updatedProfile;
+      await _service.saveProfile(updatedProfile);
+      notifyListeners();
+      return true;
+    }
+
     if (_profile == null) {
       _profile = PatientProfile.initial(
         patientId: _normalizePatientId(normalizedCode),

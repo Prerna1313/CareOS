@@ -28,8 +28,11 @@ class MemoryProvider extends ChangeNotifier {
 
   void _listenToCloudUpdates() {
     _firestoreService?.getMemoriesStream().listen((cloudMemories) async {
+      final scopedCloudMemories = cloudMemories
+          .where((item) => item.patientId == _patientId)
+          .toList();
       // 1. Reconcile with local Hive
-      for (final cloudItem in cloudMemories) {
+      for (final cloudItem in scopedCloudMemories) {
         final localItem = _service.getMemoryById(cloudItem.id);
         if (localItem == null) {
           // New from cloud
@@ -69,7 +72,7 @@ class MemoryProvider extends ChangeNotifier {
   }
 
   void _loadMemories() {
-    _memories = _service.getAllMemories();
+    _memories = _service.getAllMemories(patientId: _patientId);
     notifyListeners();
   }
 

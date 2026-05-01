@@ -9,6 +9,7 @@ import '../services/confusion_detection_result_service.dart';
 import '../services/firestore/firestore_caregiver_service.dart';
 import '../services/mock_data_provider.dart';
 import '../services/patient_session_service.dart';
+import '../services/patient_registry_service.dart';
 import 'alert_repository.dart';
 import 'reminder_repository.dart';
 import 'safe_zone_repository.dart';
@@ -22,11 +23,13 @@ class ReportRepository implements BaseRepository<CaregiverReport> {
   final _safeZoneRepository = SafeZoneRepository();
   final _confusionResultService = ConfusionDetectionResultService();
   final _patientSessionService = PatientSessionService();
+  final _registryService = PatientRegistryService();
 
   @override
   Future<void> create(CaregiverReport item) async {
     await _service.save(item);
     await _firestoreService.syncCaregiverReport(item);
+    await _registryService.syncSharedCaregiverReport(item);
   }
 
   @override
@@ -51,6 +54,15 @@ class ReportRepository implements BaseRepository<CaregiverReport> {
       reports = remoteReports;
       return reports;
     }
+    final sharedReports = await _registryService.getSharedCaregiverReports(
+      patientId,
+    );
+    if (sharedReports.isNotEmpty) {
+      for (final report in sharedReports) {
+        await _service.save(report);
+      }
+      return sharedReports;
+    }
     return MockDataProvider.getMockCaregiverReports(patientId: patientId);
   }
 
@@ -61,6 +73,7 @@ class ReportRepository implements BaseRepository<CaregiverReport> {
   Future<void> update(CaregiverReport item) async {
     await _service.save(item);
     await _firestoreService.syncCaregiverReport(item);
+    await _registryService.syncSharedCaregiverReport(item);
   }
 
   Future<ProgressReport> generateProgressReport(

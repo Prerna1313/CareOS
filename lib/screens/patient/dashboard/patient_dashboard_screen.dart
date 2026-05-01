@@ -724,28 +724,34 @@ class _OrientationHeader extends StatelessWidget {
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    timeStr,
-                    style: textTheme.displayMedium?.copyWith(
-                      color: AppColors.onSurface,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -1,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      timeStr,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.displayMedium?.copyWith(
+                        color: AppColors.onSurface,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -1,
+                      ),
                     ),
-                  ),
-                  Text(
-                    dateStr,
-                    style: textTheme.titleLarge?.copyWith(
-                      color: AppColors.onSurfaceVariant,
-                      fontWeight: FontWeight.w500,
+                    Text(
+                      dateStr,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.titleLarge?.copyWith(
+                        color: AppColors.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 12),
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -776,7 +782,10 @@ class _OrientationHeader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               IconButton(
                 tooltip: 'Patient settings',
@@ -784,14 +793,6 @@ class _OrientationHeader extends StatelessWidget {
                     Navigator.pushNamed(context, AppRoutes.patientSettings),
                 icon: const Icon(Icons.settings_rounded),
               ),
-              Expanded(
-                child: _StatusChip(
-                  icon: Icons.home_rounded,
-                  text: profile?.homeLabel ?? 'Home',
-                  textTheme: textTheme,
-                ),
-              ),
-              const SizedBox(width: 12),
               Tooltip(
                 message: 'Play orientation help aloud',
                 child: GestureDetector(
@@ -826,8 +827,44 @@ class _OrientationHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
+              PopupMenuButton<String>(
+                tooltip: 'More options',
+                onSelected: (value) async {
+                  if (value == 'logout') {
+                    await context.read<PatientSessionProvider>().signOut();
+                    if (!context.mounted) return;
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      AppRoutes.patientAccess,
+                      (route) => false,
+                    );
+                  }
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem<String>(
+                    value: 'logout',
+                    child: Text('Log out'),
+                  ),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest.withValues(alpha: 0.45),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.logout_rounded),
+                ),
+              ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 110, maxWidth: 220),
+                child: _StatusChip(
+                  icon: Icons.home_rounded,
+                  text: profile?.homeLabel ?? 'Home',
+                  textTheme: textTheme,
+                ),
+              ),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 90, maxWidth: 160),
                 child: _StatusChip(
                   icon: Icons.ac_unit_rounded,
                   text: _getSeason(),
@@ -870,15 +907,18 @@ class _StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: AppColors.onSecondaryContainer, size: 20),
           const SizedBox(width: 8),
-          Text(
-            text,
-            style: textTheme.titleMedium?.copyWith(
-              color: AppColors.onSecondaryContainer,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: textTheme.titleMedium?.copyWith(
+                color: AppColors.onSecondaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -2394,7 +2434,7 @@ class _DailySummarySnapshotCard extends StatelessWidget {
               crossAxisCount: 2,
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
-              childAspectRatio: 1.75,
+              childAspectRatio: 1.45,
             ),
             itemCount: quickStats.length,
             itemBuilder: (context, index) {

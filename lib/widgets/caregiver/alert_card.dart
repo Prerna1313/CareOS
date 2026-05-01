@@ -26,7 +26,7 @@ class AlertCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: isActive ? AppColors.errorColor.withOpacity(0.5) : Colors.grey[200]!,
+          color: isActive ? AppColors.errorColor.withValues(alpha: 0.5) : Colors.grey[200]!,
           width: isActive ? 1.5 : 1.0,
         ),
       ),
@@ -39,12 +39,21 @@ class AlertCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SeverityBadge(severity: alert.severity),
-                  Text(
-                    DateFormat('MMM d, h:mm a').format(alert.timestamp),
-                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: SeverityBadge(severity: alert.severity),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      DateFormat('MMM d, h:mm a').format(alert.timestamp),
+                      textAlign: TextAlign.end,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
                   ),
                 ],
               ),

@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../providers/patient_session_provider.dart';
 import '../../routes/app_routes.dart';
+import '../../services/patient_registry_service.dart';
+import '../../services/patient_session_service.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/gradient_button.dart';
@@ -34,7 +36,15 @@ class _PatientAccessScreenState extends State<PatientAccessScreen> {
     }
 
     setState(() => _isSubmitting = true);
+    final registryService = context.read<PatientRegistryService>();
+    final patientSessionService = context.read<PatientSessionService>();
     final sessionProvider = context.read<PatientSessionProvider>();
+    final remoteProfile = await registryService.getByAccessCode(accessCode);
+    if (remoteProfile != null) {
+      await patientSessionService.saveLinkedProfile(
+        remoteProfile.toPatientProfile(),
+      );
+    }
     final success = await sessionProvider.bootstrapAccess(
       enteredCode: accessCode,
       preferredName: _nameController.text.trim(),
@@ -201,7 +211,7 @@ class _PatientAccessScreenState extends State<PatientAccessScreen> {
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          'This build stores patient access and activity on this device only for now.',
+                          'Use the caregiver-issued patient access code to open the linked patient space.',
                           style: textTheme.bodySmall?.copyWith(
                             color: AppColors.onSurfaceVariant.withValues(
                               alpha: 0.7,

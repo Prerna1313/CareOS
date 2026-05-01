@@ -53,12 +53,11 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
         members = seeded;
       }
     }
-    if (mounted) {
-      setState(() {
-        _members = members;
-        _isLoading = false;
-      });
-    }
+    if (!mounted) return;
+    setState(() {
+      _members = members;
+      _isLoading = false;
+    });
   }
 
   @override
@@ -72,59 +71,24 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _members.length,
-              itemBuilder: (context, index) {
-                final member = _members[index];
-                return Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: Colors.grey[200]!),
-                  ),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.primaryColor.withValues(alpha: 0.1),
-                      child: Text(
-                        member.name[0],
-                        style: const TextStyle(
-                          color: AppColors.primaryColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    title: Text(
-                      member.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      [
-                        member.role.displayName,
-                        if (member.phone?.isNotEmpty == true) member.phone,
-                        if (member.email?.isNotEmpty == true) member.email,
-                      ].whereType<String>().join(' • '),
-                    ),
-                    trailing: member.id != (_session ?? CaregiverSession.fallback()).caregiverId
-                        ? IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: AppColors.errorColor,
-                            ),
-                            onPressed: () => _removeMember(member),
-                          )
-                        : null,
-                  ),
-                );
-              },
-            ),
+          : _members.isEmpty
+              ? _buildEmptyState()
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    _buildLinkedCodesCard(),
+                    const SizedBox(height: 16),
+                    ..._members.map(_buildMemberCard),
+                  ],
+                ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddMemberDialog,
         backgroundColor: AppColors.primaryColor,
         icon: const Icon(Icons.person_add, color: Colors.white),
-        label: const Text('Invite Member', style: TextStyle(color: Colors.white)),
+        label: const Text(
+          'Invite Member',
+          style: TextStyle(color: Colors.white),
+        ),
       ),
     );
   }
@@ -153,9 +117,118 @@ class _CareTeamScreenState extends State<CareTeamScreen> {
         patientId: session.patientId,
         name: 'Assigned Doctor',
         role: CareTeamRole.doctor,
+        notes: (session.doctorInviteCode ?? '').isNotEmpty
+            ? 'Register using invite code ${session.doctorInviteCode}'
+            : 'Invite code will appear after caregiver onboarding.',
         createdAt: DateTime.now(),
       ),
     ];
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.groups_rounded,
+              size: 52,
+              color: AppColors.primaryColor,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'No care team members yet.',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Invite a doctor or add another caregiver to complete this patient’s support circle.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[700], height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            _buildLinkedCodesCard(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLinkedCodesCard() {
+    final session = _session ?? CaregiverSession.fallback();
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Linked access',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            Text('Patient code: ${session.patientAccessCode}'),
+            if ((session.doctorInviteCode ?? '').isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('Doctor invite: ${session.doctorInviteCode}'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMemberCard(CareTeamMember member) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey[200]!),
+      ),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: CircleAvatar(
+          backgroundColor: AppColors.primaryColor.withValues(alpha: 0.1),
+          child: Text(
+            member.name.isNotEmpty ? member.name[0] : '?',
+            style: const TextStyle(
+              color: AppColors.primaryColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        title: Text(
+          member.name,
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        subtitle: Text(
+          [
+            member.role.displayName,
+            if (member.phone?.isNotEmpty == true) member.phone,
+            if (member.email?.isNotEmpty == true) member.email,
+            if (member.notes?.isNotEmpty == true) member.notes,
+          ].whereType<String>().join(' • '),
+        ),
+        trailing: member.id != (_session ?? CaregiverSession.fallback()).caregiverId
+            ? IconButton(
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.errorColor,
+                ),
+                onPressed: () => _removeMember(member),
+              )
+            : null,
+      ),
+    );
   }
 
   Future<void> _showAddMemberDialog() async {

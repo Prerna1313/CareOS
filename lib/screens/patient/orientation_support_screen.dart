@@ -88,7 +88,23 @@ class OrientationSupportScreen extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () async {
+                await context.read<PatientRecordsService>().logIntervention(
+                  patientId: profile?.patientId ?? 'patient_local_demo',
+                  triggerType: 'orientation_screen',
+                  interventionType: 'support_response',
+                  outcome: 'patient_reassured',
+                  notes:
+                      'The patient confirmed they feel better after orientation support.',
+                );
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Support update saved for your caregiver.'),
+                  ),
+                );
+                Navigator.of(context).pop();
+              },
               icon: const Icon(Icons.check_circle_outline_rounded),
               label: const Text('I Feel Better'),
             ),

@@ -3,20 +3,28 @@ import 'package:flutter/widgets.dart';
 class CaregiverSession {
   final String caregiverId;
   final String caregiverName;
+  final String? caregiverEmail;
   final String patientId;
+  final String patientAccessCode;
   final String patientName;
+  final int patientAge;
   final String condition;
   final String location;
   final String? emergencyPhone;
+  final String? doctorInviteCode;
 
   const CaregiverSession({
     required this.caregiverId,
     required this.caregiverName,
+    this.caregiverEmail,
     required this.patientId,
+    required this.patientAccessCode,
     required this.patientName,
+    required this.patientAge,
     required this.condition,
     required this.location,
     this.emergencyPhone,
+    this.doctorInviteCode,
   });
 
   factory CaregiverSession.fromRouteArguments(Object? args) {
@@ -36,12 +44,18 @@ class CaregiverSession {
           prefix: 'cg',
         ),
         caregiverName: caregiverName,
+        caregiverEmail: args['caregiverEmail']?.toString(),
         patientId: _coerceId(
           args['patientId']?.toString(),
           fallbackSource: patientName,
           prefix: 'pt',
         ),
+        patientAccessCode: _coerceText(
+          args['patientAccessCode']?.toString(),
+          fallback: args['patientId']?.toString() ?? patientName,
+        ),
         patientName: patientName,
+        patientAge: int.tryParse(args['patientAge']?.toString() ?? '') ?? 78,
         condition: _coerceText(
           args['condition']?.toString(),
           fallback: 'Alzheimer\'s Support Plan',
@@ -51,6 +65,7 @@ class CaregiverSession {
           fallback: 'Home base pending setup',
         ),
         emergencyPhone: args['emergencyPhone']?.toString(),
+        doctorInviteCode: args['doctorInviteCode']?.toString(),
       );
     }
 
@@ -61,11 +76,15 @@ class CaregiverSession {
     return const CaregiverSession(
       caregiverId: 'cg_demo',
       caregiverName: 'Primary Caregiver',
+      caregiverEmail: null,
       patientId: 'pat_123',
+      patientAccessCode: 'PT-1234',
       patientName: 'Eleanor Smith',
+      patientAge: 78,
       condition: 'Alzheimer\'s Stage 2',
       location: 'Living Room',
       emergencyPhone: null,
+      doctorInviteCode: null,
     );
   }
 
@@ -89,6 +108,22 @@ class CaregiverSession {
         .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
         .replaceAll(RegExp(r'^_+|_+$'), '');
     return '${prefix}_${slug.isEmpty ? 'demo' : slug}';
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'caregiverId': caregiverId,
+      'caregiverName': caregiverName,
+      'caregiverEmail': caregiverEmail,
+      'patientId': patientId,
+      'patientAccessCode': patientAccessCode,
+      'patientName': patientName,
+      'patientAge': patientAge,
+      'condition': condition,
+      'location': location,
+      'emergencyPhone': emergencyPhone,
+      'doctorInviteCode': doctorInviteCode,
+    };
   }
 }
 

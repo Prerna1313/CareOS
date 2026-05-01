@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../../../models/caregiver_session.dart';
+import '../../../models/caregiver_report.dart';
 import '../../../models/exported_report_file.dart';
 import '../../../repositories/report_repository.dart';
 import '../../../services/caregiver_report_export_service.dart';
@@ -16,10 +18,12 @@ class ProgressReportScreen extends StatefulWidget {
 class _ProgressReportScreenState extends State<ProgressReportScreen> {
   final _repository = ReportRepository();
   final _exportService = CaregiverReportExportService();
+  final _uuid = const Uuid();
   CaregiverSession? _session;
   bool _isLoading = true;
   ProgressReport? _report;
   List<ExportedReportFile> _exports = [];
+  bool _sharedToDoctor = false;
 
   @override
   void initState() {
@@ -65,6 +69,11 @@ class _ProgressReportScreenState extends State<ProgressReportScreen> {
         elevation: 0,
         actions: [
           IconButton(
+            icon: const Icon(Icons.send_outlined, color: AppColors.primaryColor),
+            tooltip: 'Share summary to doctor',
+            onPressed: _shareWithDoctor,
+          ),
+          IconButton(
             icon: const Icon(Icons.share, color: AppColors.primaryColor),
             onPressed: _exportSoftCopy,
           ),
@@ -106,6 +115,20 @@ class _ProgressReportScreenState extends State<ProgressReportScreen> {
                 ),
               )),
               const SizedBox(height: 24),
+              if (_sharedToDoctor)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondaryColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'This progress snapshot has been shared into the doctor handoff feed.',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
               _buildSectionTitle('Stored Soft Copies'),
               if (_exports.isEmpty)
                 Text(
@@ -165,6 +188,45 @@ class _ProgressReportScreenState extends State<ProgressReportScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Soft copy saved at ${exported.filePath}')),
+    );
+  }
+
+  Future<void> _shareWithDoctor() async {
+    final session = _session ?? CaregiverSession.fallback();
+    if (_report == null) {
+      return;
+    }
+
+    final note = StringBuffer()
+      ..writeln('Weekly caregiver progress summary for ${session.patientName}.')
+      ..writeln(
+        'Medication adherence: ${(_report!.medicationAdherence * 100).round()}%.',
+      )
+      ..writeln(
+        'Alert counts - high: ${_report!.alertSummary['high'] ?? 0}, medium: ${_report!.alertSummary['medium'] ?? 0}, low: ${_report!.alertSummary['low'] ?? 0}.',
+      )
+      ..writeln(_report!.locationSafety)
+      ..writeln('Recommended follow-up:')
+      ..writeln(_report!.recommendedActions.map((item) => '- $item').join('\n'));
+
+    await _repository.create(
+      CaregiverReport(
+        id: _uuid.v4(),
+        patientId: session.patientId,
+        caregiverId: session.caregiverId,
+        category: ReportCategory.activity,
+        note: note.toString().trim(),
+        timestamp: DateTime.now(),
+        visibleToDoctor: true,
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() => _sharedToDoctor = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Progress report summary shared to doctor feed.'),
+      ),
     );
   }
 }

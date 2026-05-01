@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../../models/alert.dart';
 import '../../../models/caregiver_session.dart';
 import '../../../models/confusion_detection_result.dart';
+import '../../../models/confusion_state.dart';
 import '../../../models/safe_zone.dart';
 import '../../../models/medication_reminder.dart';
 import '../../../models/patient.dart';
@@ -10,7 +11,6 @@ import '../../../models/daily_summary.dart';
 import '../../../repositories/patient_monitoring_repository.dart';
 import '../../../repositories/reminder_repository.dart';
 import '../../../repositories/safe_zone_repository.dart';
-import '../../../routes/app_routes.dart';
 import '../../../services/backend_speech_result_service.dart';
 import '../../../services/backend_video_result_service.dart';
 import '../../../services/caregiver_alert_feed_service.dart';
@@ -56,6 +56,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           stream: _repository.getPatientStatusStream(
             session.patientId,
             fallbackName: session.patientName,
+            fallbackAge: session.patientAge,
             fallbackCondition: session.condition,
             fallbackLocation: session.location,
           ),
@@ -111,6 +112,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                             );
                             return _buildDashboardContent(
                               context,
+                              session,
                               confusionAssessment,
                               reminders,
                               alerts,
@@ -131,6 +133,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
 
   Widget _buildDashboardContent(
     BuildContext context,
+    CaregiverSession session,
     ConfusionDetectionResult? confusionAssessment,
     List<MedicationReminder> reminders,
     List<Alert> alerts,
@@ -147,10 +150,12 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildHeader(),
+            const SizedBox(height: 16),
+            _buildAccessCodesCard(session),
             const SizedBox(height: 24),
             _buildRiskGauge(confusionAssessment),
             const SizedBox(height: 24),
-            _buildMetricsGrid(reminders),
+            _buildMetricsGrid(session, confusionAssessment, reminders, alerts),
             const SizedBox(height: 24),
             _buildAlertHighlights(alerts),
             const SizedBox(height: 24),
@@ -166,6 +171,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
 
   Widget _buildHeader() {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         CircleAvatar(
           radius: 30,
@@ -186,7 +192,10 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 4),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   StatusChip(
                     label: _patient!.currentStatus.toUpperCase(),
@@ -273,14 +282,77 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
               ],
             ),
           ),
+          const SizedBox(width: 16),
           ConfusionGauge(score: gaugeScore, size: 100),
         ],
       ),
     );
   }
 
-  Widget _buildMetricsGrid(List<MedicationReminder> reminders) {
+  Widget _buildAccessCodesCard(CaregiverSession session) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Linked Access Codes',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _ReminderStatusChip(
+                label: 'Patient ${session.patientAccessCode}',
+                color: AppColors.primaryColor,
+              ),
+              if ((session.doctorInviteCode ?? '').isNotEmpty)
+                _ReminderStatusChip(
+                  label: 'Doctor ${session.doctorInviteCode}',
+                  color: AppColors.tertiaryColor,
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Use the patient code for patient device access and the doctor code for doctor registration.',
+            style: TextStyle(color: Colors.grey[700], height: 1.35),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricsGrid(
+    CaregiverSession session,
+    ConfusionDetectionResult? confusionAssessment,
+    List<MedicationReminder> reminders,
+    List<Alert> alerts,
+  ) {
     final nextReminder = _nextReminder(reminders);
+    final recordsService = context.read<PatientRecordsService>();
+    final dailyDigest = recordsService.buildDailyDigest(
+      patientId: session.patientId,
+      confusionState: _toConfusionState(confusionAssessment),
+    );
+    final observationCount = dailyDigest['capturedObservations'] as int? ?? 0;
+    final interventionCount = recordsService
+        .getInterventions(session.patientId)
+        .length;
+    final todayMood = dailyDigest['todayMood'] as String? ?? _summary!.moodSummary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -291,7 +363,7 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 1.5,
+          childAspectRatio: 1.22,
           children: [
             MetricCard(
               title: 'Medication',
@@ -304,20 +376,21 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
             MetricCard(
               title: 'Activity',
               value: _summary!.activityLevel,
-              subtitle: '${_summary!.stepsToday} steps',
+              subtitle: '$observationCount observations',
               icon: Icons.directions_walk,
               color: AppColors.secondaryColor,
             ),
             MetricCard(
               title: 'Engagement',
-              value: '${_summary!.memoryCueEngagement} cues',
-              subtitle: 'Interactions today',
+              value: '${_summary!.memoryCueEngagement + interventionCount}',
+              subtitle: todayMood,
               icon: Icons.touch_app_outlined,
               color: Colors.orange,
             ),
             MetricCard(
               title: 'Active Alerts',
-              value: _summary!.alertCount.toString(),
+              value: alerts.length.toString(),
+              subtitle: 'Live risk feed',
               icon: Icons.notifications_active_outlined,
               color: AppColors.errorColor,
             ),
@@ -522,6 +595,26 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
     );
   }
 
+  ConfusionState _toConfusionState(
+    ConfusionDetectionResult? confusionAssessment,
+  ) {
+    if (confusionAssessment == null) {
+      return const ConfusionState();
+    }
+
+    final level = switch (confusionAssessment.riskLevel) {
+      ConfusionRiskLevel.high => ConfusionLevel.high,
+      ConfusionRiskLevel.moderate || ConfusionRiskLevel.mild => ConfusionLevel.mild,
+      ConfusionRiskLevel.stable => ConfusionLevel.normal,
+    };
+
+    return ConfusionState(
+      level: level,
+      score: confusionAssessment.score.round(),
+      reasons: confusionAssessment.detectedSignals,
+    );
+  }
+
   Future<void> _sendVoiceCue(
     BuildContext context,
     CaregiverSession session,
@@ -562,7 +655,13 @@ class _CaregiverDashboardScreenState extends State<CaregiverDashboardScreen> {
       notes: 'Caregiver triggered orientation support remotely.',
     );
     if (!mounted) return;
-    Navigator.pushNamed(this.context, AppRoutes.patientOrientationSupport);
+    ScaffoldMessenger.of(this.context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Orientation support queued for ${session.patientName}.',
+        ),
+      ),
+    );
   }
 }
 

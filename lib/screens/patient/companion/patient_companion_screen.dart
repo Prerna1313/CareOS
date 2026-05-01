@@ -518,6 +518,7 @@ class _PatientCompanionScreenState extends State<PatientCompanionScreen> {
       importantItems: profile.importantItems,
       autoOrientationEnabled: profile.autoOrientationEnabled,
       voicePromptsEnabled: enabled,
+      liveLocationSharingEnabled: profile.liveLocationSharingEnabled,
       textScaleFactor: profile.textScaleFactor,
       highContrastEnabled: profile.highContrastEnabled,
       reducedMotionEnabled: profile.reducedMotionEnabled,

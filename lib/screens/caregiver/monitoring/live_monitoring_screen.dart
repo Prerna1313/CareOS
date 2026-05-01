@@ -57,6 +57,7 @@ class _LiveMonitoringScreenState extends State<LiveMonitoringScreen> {
     final p = await _repository.getPatientStatus(
       session.patientId,
       fallbackName: session.patientName,
+      fallbackAge: session.patientAge,
       fallbackCondition: session.condition,
       fallbackLocation: session.location,
     );

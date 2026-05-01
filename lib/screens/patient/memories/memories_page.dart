@@ -1185,6 +1185,28 @@ class _ManualMemoryCard extends StatelessWidget {
                           color: AppColors.onSurfaceVariant,
                         ),
                       ),
+                      const SizedBox(width: 6),
+                      IconButton(
+                        tooltip: 'Delete memory',
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        onPressed: () async {
+                          await context.read<MemoryProvider>().deleteMemory(item.id);
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Deleted "${item.name}" from memories.',
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                          color: AppColors.error,
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),

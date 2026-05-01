@@ -551,7 +551,7 @@ class _CameraLiveScreenState extends State<CameraLiveScreen> {
 
           if (_latestVideoResult != null)
             Positioned(
-              top: 360,
+              top: 270,
               right: 16,
               child: _VideoAnalysisPreviewCard(
                 result: _latestVideoResult!,

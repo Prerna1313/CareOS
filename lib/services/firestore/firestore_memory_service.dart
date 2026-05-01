@@ -35,7 +35,7 @@ class FirestoreMemoryService extends FirestoreService {
     return collectionStream<MemoryItem>(
       path: 'users/$uid/$collectionPath',
       builder: (data, _) => MemoryItem.fromMap(data),
-      queryBuilder: (query) => query.orderBy('createdAt', descending: true),
+      queryBuilder: (query) => query,
     );
   }
 

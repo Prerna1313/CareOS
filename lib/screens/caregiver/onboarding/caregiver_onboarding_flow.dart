@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../theme/app_colors.dart';
 import '../../../routes/app_routes.dart';
 import '../../../widgets/custom_text_field.dart';
 import 'dart:math';
 import '../../../widgets/gradient_button.dart';
+import '../../../models/caregiver_session.dart';
+import '../../../models/patient/patient_profile.dart';
+import '../../../models/patient_registry_record.dart';
+import '../../../services/app_auth_service.dart';
+import '../../../services/caregiver_session_service.dart';
+import '../../../services/patient_session_service.dart';
+import '../../../services/patient_registry_service.dart';
 
 /// Caregiver Onboarding Flow — 3 Steps
 /// Step 1: Caregiver Info (from Stitch: "Welcome, Caregiver.")
@@ -20,26 +28,60 @@ class CaregiverOnboardingFlow extends StatefulWidget {
 class _CaregiverOnboardingFlowState extends State<CaregiverOnboardingFlow> {
   int _currentStep = 0;
   final PageController _pageController = PageController();
+  bool _seededRouteDefaults = false;
+  bool _isSubmitting = false;
 
   final TextEditingController _caregiverNameController = TextEditingController();
+  final TextEditingController _caregiverRelationshipController =
+      TextEditingController();
+  final TextEditingController _caregiverPhoneController =
+      TextEditingController();
+  final TextEditingController _caregiverEmailController =
+      TextEditingController();
+  final TextEditingController _caregiverPasswordController =
+      TextEditingController();
   final TextEditingController _patientNameController = TextEditingController();
+  final TextEditingController _patientAgeController = TextEditingController();
   final TextEditingController _conditionController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _emergencyPhoneController =
       TextEditingController();
+  final _caregiverSessionService = CaregiverSessionService();
+  final _patientSessionService = PatientSessionService();
 
   @override
   void dispose() {
     _pageController.dispose();
     _caregiverNameController.dispose();
+    _caregiverRelationshipController.dispose();
+    _caregiverPhoneController.dispose();
+    _caregiverEmailController.dispose();
+    _caregiverPasswordController.dispose();
     _patientNameController.dispose();
+    _patientAgeController.dispose();
     _conditionController.dispose();
     _locationController.dispose();
     _emergencyPhoneController.dispose();
     super.dispose();
   }
 
-  void _nextStep() {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_seededRouteDefaults) return;
+    _seededRouteDefaults = true;
+    final routeArgs = ModalRoute.of(context)?.settings.arguments;
+    if (routeArgs is Map) {
+      _caregiverEmailController.text =
+          routeArgs['caregiverEmail']?.toString().trim() ?? '';
+      _caregiverPasswordController.text =
+          routeArgs['caregiverPassword']?.toString().trim() ?? '';
+      _caregiverNameController.text =
+          routeArgs['caregiverName']?.toString().trim() ?? '';
+    }
+  }
+
+  Future<void> _nextStep() async {
     if (_currentStep < 2) {
       setState(() => _currentStep++);
       _pageController.animateToPage(
@@ -48,21 +90,187 @@ class _CaregiverOnboardingFlowState extends State<CaregiverOnboardingFlow> {
         curve: Curves.easeInOut,
       );
     } else {
+      final caregiverName = _caregiverNameController.text.trim();
+      final caregiverEmail = _caregiverEmailController.text.trim();
+      final caregiverPassword = _caregiverPasswordController.text.trim();
+      final patientName = _patientNameController.text.trim();
+      if (caregiverName.isEmpty) {
+        _showMessage('Please enter the caregiver name.');
+        return;
+      }
+      if (caregiverEmail.isEmpty) {
+        _showMessage('Please enter the caregiver email.');
+        return;
+      }
+      if (caregiverPassword.isEmpty || caregiverPassword.length < 6) {
+        _showMessage('Please enter a password with at least 6 characters.');
+        return;
+      }
+      if (patientName.isEmpty) {
+        _showMessage('Please enter the patient name.');
+        return;
+      }
+
+      setState(() => _isSubmitting = true);
+      try {
       final String generatedId = 'PT-${1000 + Random().nextInt(9000)}';
+      final String accessCode =
+          'PT-${1000 + Random().nextInt(9000)}-${10 + Random().nextInt(89)}';
+      final String doctorInviteCode =
+          'DR-${1000 + Random().nextInt(9000)}-${100 + Random().nextInt(899)}';
+      final routeArgs = ModalRoute.of(context)?.settings.arguments;
+      final resolvedCaregiverEmailInput =
+          _caregiverEmailController.text.trim().isNotEmpty
+          ? _caregiverEmailController.text.trim()
+          : routeArgs is Map
+              ? routeArgs['caregiverEmail']?.toString().trim()
+              : null;
+      final resolvedCaregiverPasswordInput =
+          _caregiverPasswordController.text.trim().isNotEmpty
+          ? _caregiverPasswordController.text.trim()
+          : routeArgs is Map
+              ? routeArgs['caregiverPassword']?.toString().trim()
+              : null;
+      final caregiverUid = routeArgs is Map
+          ? routeArgs['caregiverUid']?.toString().trim()
+          : null;
+      final caregiverNameFromArgs = routeArgs is Map
+          ? routeArgs['caregiverName']?.toString().trim()
+          : null;
+      final authService = context.read<AppAuthService>();
+      final registryService = context.read<PatientRegistryService>();
+
+      String resolvedCaregiverUid = caregiverUid ?? '';
+      String resolvedCaregiverName = caregiverNameFromArgs?.isNotEmpty == true
+          ? caregiverNameFromArgs!
+          : caregiverName;
+      String resolvedCaregiverEmail = resolvedCaregiverEmailInput ?? '';
+      final patientAge = int.tryParse(_patientAgeController.text.trim()) ?? 78;
+      final caregiverRelationship = _caregiverRelationshipController.text
+          .trim();
+
+      if (resolvedCaregiverUid.isEmpty && resolvedCaregiverEmail.isNotEmpty) {
+        final authProfile = await authService.registerCaregiver(
+          email: resolvedCaregiverEmail,
+          password: resolvedCaregiverPasswordInput?.isNotEmpty == true
+              ? resolvedCaregiverPasswordInput!
+              : 'CareOS@12345',
+          displayName: resolvedCaregiverName,
+        );
+        resolvedCaregiverUid = authProfile.uid;
+        resolvedCaregiverName = authProfile.displayName;
+        resolvedCaregiverEmail = authProfile.email;
+      }
+
+      final sessionArgs = {
+        'caregiverId': resolvedCaregiverUid.isNotEmpty
+            ? resolvedCaregiverUid
+            : 'cg_${_caregiverNameController.text.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_')}',
+        'caregiverName': resolvedCaregiverName,
+        'caregiverEmail': resolvedCaregiverEmail,
+        'patientName': patientName,
+        'condition': _conditionController.text,
+        'location': _locationController.text,
+        'patientId': generatedId,
+        'patientAccessCode': accessCode,
+        'emergencyPhone': _emergencyPhoneController.text.trim(),
+        'doctorInviteCode': doctorInviteCode,
+        'patientAge': patientAge,
+      };
+      final linkedProfile = PatientProfile.initial(
+        patientId: generatedId,
+        accessCode: accessCode,
+        displayName: patientName,
+        age: patientAge,
+      ).copyWith(
+        homeLabel: _locationController.text.trim().isNotEmpty
+            ? _locationController.text.trim()
+            : 'Home',
+        caregiverName: _caregiverNameController.text.trim().isNotEmpty
+            ? _caregiverNameController.text.trim()
+            : 'Caregiver',
+        caregiverRelationship:
+            caregiverRelationship.isNotEmpty ? caregiverRelationship : 'caregiver',
+        lastKnownContextSummary:
+            'Your caregiver prepared support for you at ${_locationController.text.trim().isNotEmpty ? _locationController.text.trim() : 'home'}.',
+      );
+      if (resolvedCaregiverUid.isNotEmpty) {
+        await registryService.createPatientRegistryRecord(
+          PatientRegistryRecord(
+            patientId: generatedId,
+            accessCode: accessCode,
+            doctorInviteCode: doctorInviteCode,
+            patientName: patientName,
+            patientAge: patientAge,
+            condition: _conditionController.text.trim().isNotEmpty
+                ? _conditionController.text.trim()
+                : 'Care plan pending',
+            homeLocation: _locationController.text.trim().isNotEmpty
+                ? _locationController.text.trim()
+                : 'Home',
+            emergencyPhone: _emergencyPhoneController.text.trim(),
+            caregiverUid: resolvedCaregiverUid,
+            caregiverName: resolvedCaregiverName,
+            caregiverEmail: resolvedCaregiverEmail,
+            doctorUids: const [],
+            createdAt: DateTime.now(),
+          ),
+        );
+        final currentProfile = await authService.getCurrentProfile();
+        if (currentProfile != null) {
+          await authService.updateLinkedPatients(
+            uid: currentProfile.uid,
+            linkedPatientIds: {
+              ...currentProfile.linkedPatientIds,
+              generatedId,
+            }.toList(),
+            activePatientId: generatedId,
+          );
+        }
+      }
+
+      await _caregiverSessionService.saveSession(
+        CaregiverSession.fromRouteArguments(sessionArgs),
+      );
+      await _patientSessionService.saveLinkedProfile(linkedProfile);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Access Codes Ready'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Patient access code: $accessCode'),
+              const SizedBox(height: 8),
+              Text('Doctor invite code: $doctorInviteCode'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Continue'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
       Navigator.pushReplacementNamed(
         context,
         AppRoutes.caregiverDashboard,
-        arguments: {
-          'caregiverId':
-              'cg_${_caregiverNameController.text.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_')}',
-          'caregiverName': _caregiverNameController.text,
-          'patientName': _patientNameController.text,
-          'condition': _conditionController.text,
-          'location': _locationController.text,
-          'patientId': generatedId,
-          'emergencyPhone': _emergencyPhoneController.text.trim(),
-        },
+        arguments: sessionArgs,
       );
+      } catch (error) {
+        if (!mounted) return;
+        setState(() => _isSubmitting = false);
+        _showMessage(
+          error is Exception
+              ? error.toString().replaceFirst('Exception: ', '')
+              : 'Caregiver setup failed. Please try again.',
+        );
+      }
     }
   }
 
@@ -77,6 +285,30 @@ class _CaregiverOnboardingFlowState extends State<CaregiverOnboardingFlow> {
     } else {
       Navigator.pop(context);
     }
+  }
+
+  Future<void> _showInviteDoctorPreview() async {
+    final previewCode =
+        'DR-${1000 + Random().nextInt(9000)}-${100 + Random().nextInt(899)}';
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Invite Doctor'),
+        content: Text(
+          'Finish caregiver setup first. CareOS will then generate a doctor invite code like $previewCode for the linked doctor account.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Okay'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -135,16 +367,22 @@ class _CaregiverOnboardingFlowState extends State<CaregiverOnboardingFlow> {
                   _CaregiverInfoStep(
                     textTheme: textTheme,
                     nameController: _caregiverNameController,
+                    relationshipController: _caregiverRelationshipController,
+                    phoneController: _caregiverPhoneController,
+                    emailController: _caregiverEmailController,
+                    passwordController: _caregiverPasswordController,
                   ),
                   _PatientSetupStep(
                     textTheme: textTheme,
                     patientNameController: _patientNameController,
+                    patientAgeController: _patientAgeController,
                     conditionController: _conditionController,
                   ),
                   _SafetySyncStep(
                     textTheme: textTheme,
                     locationController: _locationController,
                     emergencyPhoneController: _emergencyPhoneController,
+                    onInviteDoctorTap: _showInviteDoctorPreview,
                   ),
                 ],
               ),
@@ -154,11 +392,13 @@ class _CaregiverOnboardingFlowState extends State<CaregiverOnboardingFlow> {
             Padding(
               padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
               child: GradientButton(
-                text: _currentStep == 2 ? 'Finish Setup' : 'Continue',
+                text: _isSubmitting
+                    ? 'Please wait...'
+                    : (_currentStep == 2 ? 'Finish Setup' : 'Continue'),
                 icon: _currentStep == 2
                     ? Icons.check_rounded
                     : Icons.arrow_forward_rounded,
-                onPressed: _nextStep,
+                onPressed: _isSubmitting ? null : _nextStep,
               ),
             ),
           ],
@@ -199,10 +439,18 @@ class _StepProgressBar extends StatelessWidget {
 class _CaregiverInfoStep extends StatelessWidget {
   final TextTheme textTheme;
   final TextEditingController nameController;
+  final TextEditingController relationshipController;
+  final TextEditingController phoneController;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
   
   const _CaregiverInfoStep({
     required this.textTheme,
     required this.nameController,
+    required this.relationshipController,
+    required this.phoneController,
+    required this.emailController,
+    required this.passwordController,
   });
 
   @override
@@ -263,21 +511,31 @@ class _CaregiverInfoStep extends StatelessWidget {
             prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
           ),
           const SizedBox(height: 16),
-          const CustomTextField(
+          CustomTextField(
             label: 'Relationship to Patient',
+            controller: relationshipController,
             prefixIcon: Icon(Icons.people_outline_rounded, size: 20),
           ),
           const SizedBox(height: 16),
-          const CustomTextField(
+          CustomTextField(
             label: 'Phone Number',
+            controller: phoneController,
             keyboardType: TextInputType.phone,
             prefixIcon: Icon(Icons.phone_outlined, size: 20),
           ),
           const SizedBox(height: 16),
-          const CustomTextField(
+          CustomTextField(
             label: 'Email',
+            controller: emailController,
             keyboardType: TextInputType.emailAddress,
             prefixIcon: Icon(Icons.email_outlined, size: 20),
+          ),
+          const SizedBox(height: 16),
+          CustomTextField(
+            label: 'Password',
+            controller: passwordController,
+            obscureText: true,
+            prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
           ),
 
           const SizedBox(height: 28),
@@ -328,11 +586,13 @@ class _CaregiverInfoStep extends StatelessWidget {
 class _PatientSetupStep extends StatelessWidget {
   final TextTheme textTheme;
   final TextEditingController patientNameController;
+  final TextEditingController patientAgeController;
   final TextEditingController conditionController;
 
   const _PatientSetupStep({
     required this.textTheme,
     required this.patientNameController,
+    required this.patientAgeController,
     required this.conditionController,
   });
 
@@ -396,8 +656,9 @@ class _PatientSetupStep extends StatelessWidget {
             prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
           ),
           const SizedBox(height: 16),
-          const CustomTextField(
+          CustomTextField(
             label: 'Age',
+            controller: patientAgeController,
             keyboardType: TextInputType.number,
             prefixIcon: Icon(Icons.cake_outlined, size: 20),
           ),
@@ -429,11 +690,13 @@ class _SafetySyncStep extends StatelessWidget {
   final TextTheme textTheme;
   final TextEditingController locationController;
   final TextEditingController emergencyPhoneController;
+  final VoidCallback onInviteDoctorTap;
 
   const _SafetySyncStep({
     required this.textTheme,
     required this.locationController,
     required this.emergencyPhoneController,
+    required this.onInviteDoctorTap,
   });
 
   @override
@@ -502,7 +765,7 @@ class _SafetySyncStep extends StatelessWidget {
             icon: Icons.share_outlined,
             title: 'Invite Doctor',
             subtitle: 'Share logs and progress reports.',
-            onTap: () {},
+            onTap: onInviteDoctorTap,
           ),
 
           const SizedBox(height: 28),

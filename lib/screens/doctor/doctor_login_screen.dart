@@ -1,15 +1,92 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_colors.dart';
+import 'package:provider/provider.dart';
+
 import '../../routes/app_routes.dart';
+import '../../services/app_auth_service.dart';
+import '../../services/patient_registry_service.dart';
+import '../../services/patient_session_service.dart';
+import '../../theme/app_colors.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/gradient_button.dart';
 
-/// Doctor Login Screen
-/// From Stitch: "Doctor Login — Welcome Back"
-/// "Enter your credentials to access the Kindred Path healthcare portal."
-/// Has Forgot password link and Contact System Administrator.
-class DoctorLoginScreen extends StatelessWidget {
+class DoctorLoginScreen extends StatefulWidget {
   const DoctorLoginScreen({super.key});
+
+  @override
+  State<DoctorLoginScreen> createState() => _DoctorLoginScreenState();
+}
+
+class _DoctorLoginScreenState extends State<DoctorLoginScreen> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _inviteCodeController = TextEditingController();
+  bool _isSubmitting = false;
+  bool _isRegisterMode = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _inviteCodeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    if (email.isEmpty || password.isEmpty) {
+      _showMessage('Please enter your email and password.');
+      return;
+    }
+    if (_isRegisterMode &&
+        (_nameController.text.trim().isEmpty ||
+            _inviteCodeController.text.trim().isEmpty)) {
+      _showMessage('Doctor registration needs your name and invite code.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final authService = context.read<AppAuthService>();
+      final registryService = context.read<PatientRegistryService>();
+      final patientSessionService = context.read<PatientSessionService>();
+
+      final profile = _isRegisterMode
+          ? await authService.registerDoctor(
+              email: email,
+              password: password,
+              displayName: _nameController.text.trim(),
+              doctorInviteCode: _inviteCodeController.text.trim(),
+            )
+          : await authService.signInDoctor(email: email, password: password);
+
+      var linkedPatients = await registryService.getForDoctor(profile.uid);
+      if (linkedPatients.isEmpty && profile.linkedPatientIds.isNotEmpty) {
+        linkedPatients = await registryService.getByPatientIds(
+          profile.linkedPatientIds,
+        );
+      }
+      for (final patient in linkedPatients) {
+        await patientSessionService.saveLinkedProfile(patient.toPatientProfile());
+      }
+
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      Navigator.pushReplacementNamed(context, AppRoutes.doctorDashboard);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSubmitting = false);
+      _showMessage(
+        error is Exception ? error.toString().replaceFirst('Exception: ', '') : 'Doctor sign-in failed.',
+      );
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +101,6 @@ class DoctorLoginScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 16),
-
-                // ── Back Button ──
                 Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
@@ -39,10 +114,7 @@ class DoctorLoginScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 40),
-
-                // ── Icon ──
                 Center(
                   child: Container(
                     width: 56,
@@ -59,112 +131,77 @@ class DoctorLoginScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // ── Title ──
                 Text(
-                  'Doctor Login',
+                  _isRegisterMode ? 'Doctor Registration' : 'Doctor Login',
                   textAlign: TextAlign.center,
                   style: textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: AppColors.onSurface,
                   ),
                 ),
-                const SizedBox(height: 16),
-
-                // ── Welcome Text ──
+                const SizedBox(height: 10),
                 Text(
-                  'Welcome Back',
-                  textAlign: TextAlign.center,
-                  style: textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Enter your credentials to access the\nKindred Path healthcare portal.',
+                  _isRegisterMode
+                      ? 'Create a doctor account using the caregiver-generated invite code.'
+                      : 'Enter your credentials to access linked patient insights.',
                   textAlign: TextAlign.center,
                   style: textTheme.bodyMedium?.copyWith(
                     color: AppColors.onSurfaceVariant,
                     height: 1.5,
                   ),
                 ),
-
-                const SizedBox(height: 40),
-
-                // ── Form Fields ──
-                const CustomTextField(
+                const SizedBox(height: 32),
+                if (_isRegisterMode) ...[
+                  CustomTextField(
+                    label: 'Doctor Name',
+                    controller: _nameController,
+                    prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                CustomTextField(
                   label: 'Professional Email',
+                  controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  prefixIcon: Icon(Icons.email_outlined, size: 20),
+                  prefixIcon: const Icon(Icons.email_outlined, size: 20),
                 ),
                 const SizedBox(height: 16),
-                const CustomTextField(
+                CustomTextField(
                   label: 'Password',
+                  controller: _passwordController,
                   obscureText: true,
-                  prefixIcon: Icon(Icons.lock_outline_rounded, size: 20),
+                  prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
                 ),
-
-                // ── Forgot Password ──
-                Align(
-                  alignment: Alignment.centerRight,
+                if (_isRegisterMode) ...[
+                  const SizedBox(height: 16),
+                  CustomTextField(
+                    label: 'Doctor Invite Code',
+                    controller: _inviteCodeController,
+                    prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                GradientButton(
+                  text: _isSubmitting
+                      ? 'Please wait...'
+                      : (_isRegisterMode ? 'Create Doctor Account' : 'Login'),
+                  icon: Icons.arrow_forward_rounded,
+                  onPressed: _isSubmitting ? null : _submit,
+                ),
+                const SizedBox(height: 16),
+                Center(
                   child: TextButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      setState(() => _isRegisterMode = !_isRegisterMode);
+                    },
                     child: Text(
-                      'Forgot?',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      _isRegisterMode
+                          ? 'Already registered? Sign in'
+                          : 'Need a doctor account? Register here',
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 16),
-
-                // ── Login Button ──
-                GradientButton(
-                  text: 'Login',
-                  icon: Icons.arrow_forward_rounded,
-                  onPressed: () {
-                    Navigator.pushReplacementNamed(
-                        context, AppRoutes.doctorDashboard);
-                  },
-                ),
-
                 const SizedBox(height: 32),
-
-                // ── Contact Admin ──
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLow,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        'Need assistance with your account?',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: AppColors.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextButton(
-                        onPressed: () {},
-                        child: Text(
-                          'Contact System Administrator',
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 48),
               ],
             ),
           ),

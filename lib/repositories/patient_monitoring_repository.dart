@@ -17,6 +17,7 @@ class PatientMonitoringRepository {
   Future<Patient?> getPatientStatus(
     String patientId, {
     String? fallbackName,
+    int? fallbackAge,
     String? fallbackCondition,
     String? fallbackLocation,
   }) async {
@@ -29,6 +30,7 @@ class PatientMonitoringRepository {
     return MockDataProvider.getMockPatient(
       patientId: patientId,
       patientName: fallbackName ?? 'Eleanor Smith',
+      patientAge: fallbackAge ?? 78,
       condition: fallbackCondition ?? 'Alzheimer\'s Stage 2',
       location: fallbackLocation ?? 'Living Room',
     );
@@ -56,6 +58,7 @@ class PatientMonitoringRepository {
   Stream<Patient?> getPatientStatusStream(
     String patientId, {
     String? fallbackName,
+    int? fallbackAge,
     String? fallbackCondition,
     String? fallbackLocation,
   }) async* {
@@ -63,6 +66,7 @@ class PatientMonitoringRepository {
     yield await getPatientStatus(
       patientId,
       fallbackName: fallbackName,
+      fallbackAge: fallbackAge,
       fallbackCondition: fallbackCondition,
       fallbackLocation: fallbackLocation,
     );
@@ -72,6 +76,7 @@ class PatientMonitoringRepository {
       yield await getPatientStatus(
         patientId,
         fallbackName: fallbackName,
+        fallbackAge: fallbackAge,
         fallbackCondition: fallbackCondition,
         fallbackLocation: fallbackLocation,
       );

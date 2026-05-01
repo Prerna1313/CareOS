@@ -42,8 +42,9 @@ import 'services/backend_processing_service.dart';
 import 'services/backend_speech_result_service.dart';
 import 'services/backend_video_result_service.dart';
 import 'services/wearable_location_source_service.dart';
+import 'services/app_auth_service.dart';
+import 'services/patient_registry_service.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -67,6 +68,8 @@ void main() async {
   final backendProcessingService = BackendProcessingService();
   final backendSpeechResultService = BackendSpeechResultService();
   final backendVideoResultService = BackendVideoResultService();
+  final appAuthService = AppAuthService();
+  final patientRegistryService = PatientRegistryService();
 
   // Late initialization for services that depend on Firebase/AI
   late RecognitionService recognitionService;
@@ -110,11 +113,6 @@ void main() async {
     );
 
     await recognitionService.init();
-
-    // Attempt silent sign-in if initialized
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
-    }
   } catch (e) {
     debugPrint('App initialization partially failed: $e');
     if (e.toString().contains('core/not-initialized')) {
@@ -148,6 +146,8 @@ void main() async {
       backendProcessingService: backendProcessingService,
       backendSpeechResultService: backendSpeechResultService,
       backendVideoResultService: backendVideoResultService,
+      appAuthService: appAuthService,
+      patientRegistryService: patientRegistryService,
       confusionAiAssessmentService: confusionAiAssessmentService,
       caregiverReminderService: caregiverReminderService,
     ),
@@ -179,6 +179,8 @@ class CareOSApp extends StatelessWidget {
   final BackendProcessingService backendProcessingService;
   final BackendSpeechResultService backendSpeechResultService;
   final BackendVideoResultService backendVideoResultService;
+  final AppAuthService appAuthService;
+  final PatientRegistryService patientRegistryService;
   final ConfusionAiAssessmentService? confusionAiAssessmentService;
   final CaregiverReminderService caregiverReminderService;
 
@@ -206,6 +208,8 @@ class CareOSApp extends StatelessWidget {
     required this.backendProcessingService,
     required this.backendSpeechResultService,
     required this.backendVideoResultService,
+    required this.appAuthService,
+    required this.patientRegistryService,
     required this.confusionAiAssessmentService,
     required this.caregiverReminderService,
   });
@@ -260,6 +264,8 @@ class CareOSApp extends StatelessWidget {
         Provider<BackendVideoResultService>.value(
           value: backendVideoResultService,
         ),
+        Provider<AppAuthService>.value(value: appAuthService),
+        Provider<PatientRegistryService>.value(value: patientRegistryService),
         Provider<WearableLocationSourceService>.value(
           value: wearableLocationSourceService,
         ),

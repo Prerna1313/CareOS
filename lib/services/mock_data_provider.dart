@@ -13,13 +13,14 @@ class MockDataProvider {
   static Patient getMockPatient({
     String patientId = 'pat_123',
     String patientName = 'Eleanor Smith',
+    int patientAge = 78,
     String condition = 'Alzheimer\'s Stage 2',
     String location = 'Living Room',
   }) {
     return Patient(
       id: patientId,
       name: patientName,
-      age: 78,
+      age: patientAge,
       condition: condition,
       currentStatus: 'active',
       lastActiveAt: DateTime.now().subtract(const Duration(minutes: 5)),
